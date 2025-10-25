@@ -21,7 +21,7 @@ function PixelFrame:init()
     -- Поддержка старого API
     self.legacy = not self.frame.back.SetColorTexture
 
-    self:SetSize(1, 1)
+    self:SetSize(2, 2)
     self.frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", self.legacy and -1 or 0, self.legacy and 1 or 0)
     self.frame:SetFrameStrata("TOOLTIP")
     self.frame.back:SetAllPoints(self.frame)
