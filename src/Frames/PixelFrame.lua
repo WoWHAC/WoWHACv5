@@ -8,7 +8,9 @@ PixelFrame.__index = PixelFrame
 setmetatable(PixelFrame, {
     __call = function(cls, ...)
         local self = setmetatable({}, cls)
-        if self.init then self:init(...) end
+        if self.init then
+            self:init(...)
+        end
         return self
     end
 })
@@ -21,7 +23,8 @@ function PixelFrame:init()
     -- Поддержка старого API
     self.legacy = not self.frame.back.SetColorTexture
 
-    self:SetSize(2, 2)
+    self:SetSize(self.legacy and 2 or 1, self.legacy and 2 or 1)
+
     self.frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", self.legacy and -1 or 0, self.legacy and 1 or 0)
     self.frame:SetFrameStrata("TOOLTIP")
     self.frame.back:SetAllPoints(self.frame)
