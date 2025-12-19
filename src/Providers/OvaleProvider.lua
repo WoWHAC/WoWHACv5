@@ -73,6 +73,9 @@ WoWHACv5.providers["Ovale"] = function()
         end
 
         local spellId = GetSpellIdByName(spell.spellName)
+        if not spell.icons[1].shortcut:IsVisible() then
+            return
+        end
         if spellId then
             local cd = C_Spell.GetSpellCooldown(spellId)
             if IsReady(cd.startTime, cd.duration) then
