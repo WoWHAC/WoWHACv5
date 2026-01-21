@@ -1,4 +1,4 @@
-## Interface: 80205
+## Interface: 120000
 ## Title: WoWHACv5
 ## Notes: Auxiliary addon for third party software "WoWHACv5".
 ## Author: CKATEPTb
@@ -16,6 +16,7 @@ Utils\Steganography.lua
 Frames\ToggleBurstFrame.lua
 Frames\ToggleHekiliFrame.lua
 Providers\Provider.lua
+Providers\AssistedCombat.lua
 Providers\HekiliProvider.lua
 Providers\ConROProvider.lua
 Providers\ConROCProvider.lua

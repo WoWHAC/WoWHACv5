@@ -59,5 +59,9 @@ function WoWHACv5:NoChanges()
 end
 
 WoWHACv5.Provider = function()
-    WoWHACv5:Log("No rotation suppliers found. A list of available suppliers can be found at https://wowhac.fun/")
+    if not C_AssistedCombat then
+        WoWHACv5:Log("No rotation suppliers found. A list of available suppliers can be found at https://wowhac.fun/")
+    else
+        WoWHACv5.providers["AssistedCombat"]()
+    end
 end
