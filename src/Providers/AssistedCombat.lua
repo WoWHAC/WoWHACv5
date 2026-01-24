@@ -97,6 +97,10 @@ WoWHACv5.providers["AssistedCombat"] = function()
     local function GetKeyBindForSpellID(spellID)
         local baseSpellID = FindBaseSpellByID(spellID)
 
+        if not baseSpellID then
+            return
+        end
+
         local slots = C_ActionBar.FindSpellActionButtons(baseSpellID)
         if not slots then
             return
