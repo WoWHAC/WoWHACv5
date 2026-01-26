@@ -17,6 +17,7 @@ Frames\ToggleBurstFrame.lua
 Frames\ToggleHekiliFrame.lua
 Providers\Provider.lua
 Providers\AssistedCombat.lua
+Providers\SimpleAssistedCombat.lua
 Providers\HekiliProvider.lua
 Providers\ConROProvider.lua
 Providers\ConROCProvider.lua

@@ -95,30 +95,20 @@ function WoWHACv5:OnSpellcast(event, unit, _, _, spellId)
     --    end
     --end
 end
-local _, _, _, tocVersion = GetBuildInfo()
-if tocVersion >= 120000 then
-    function WoWHACv5:UpdatePixel()
+local version = select(4, GetBuildInfo())
+
+function WoWHACv5:UpdatePixel()
+    local casting = UnitCastingInfo("player") ~= nil
+    local currentId = WoWHACv5:GetCurrentId()
+    if casting or IsChanneling(300) or version < 120000 and ( (currentId ~= nil and currentId > 0 and not CanCast(currentId, "target", 300))) then
+        WoWHACv5.pixel:SetColor(0, 0, 0)
+    else
         local curr = WoWHACv5:GetCurrentHotKey()
         if curr == nil then
             return
         end
         local rgb = WoWHACv5.Steganography(curr)
         WoWHACv5.pixel:SetColor(rgb.red, rgb.green, rgb.blue)
-    end
-else
-    function WoWHACv5:UpdatePixel()
-        local casting = UnitCastingInfo("player") ~= nil
-        local currentId = WoWHACv5:GetCurrentId()
-        if casting or IsChanneling(300) or (currentId ~= nil and currentId > 0 and not CanCast(currentId, "target", 300)) then
-            WoWHACv5.pixel:SetColor(0, 0, 0)
-        else
-            local curr = WoWHACv5:GetCurrentHotKey()
-            if curr == nil then
-                return
-            end
-            local rgb = WoWHACv5.Steganography(curr)
-            WoWHACv5.pixel:SetColor(rgb.red, rgb.green, rgb.blue)
-        end
     end
 end
 
