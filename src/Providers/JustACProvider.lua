@@ -1,10 +1,6 @@
 local _, WoWHACv5 = ...
 
 WoWHACv5.providers = WoWHACv5.providers or {}
-WoWHACv5.providerOrder = WoWHACv5.providerOrder or {}
-
-table.insert(WoWHACv5.providerOrder, 1, "JustAC")
-
 WoWHACv5.providers["JustAC"] = function()
     WoWHACv5:Log("Supplier found: JustAC.")
 
