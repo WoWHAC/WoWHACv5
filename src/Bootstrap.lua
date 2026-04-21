@@ -22,6 +22,7 @@ function WoWHACv5:OnInitialize()
 end
 
 function WoWHACv5:OnEnable()
+    self:Log("Join our discord: https://discord.gg/P7FaqjcATp")
     self:Log("Initializing...")
 end
 
