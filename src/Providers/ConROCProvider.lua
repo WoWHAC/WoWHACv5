@@ -9,7 +9,7 @@ WoWHACv5.providers["ConROC"] = function()
         WoWHACv5:SecureHook(Keybind, "SetText", function(_, txt)
             if txt ~= last then
                 last = txt
-                WoWHACv5:SetCurrentId(ConRO.Spell)
+                WoWHACv5:SetCurrentId(ConROC.Spell)
                 WoWHACv5:SetCurrentHotKey(txt)
             end
         end)
