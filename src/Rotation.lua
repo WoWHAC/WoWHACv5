@@ -100,7 +100,7 @@ local version = select(4, GetBuildInfo())
 function WoWHACv5:UpdatePixel()
     local casting = UnitCastingInfo("player") ~= nil
     local currentId = WoWHACv5:GetCurrentId()
-    if casting or IsChanneling(300) or version < 120000 and ( (currentId ~= nil and currentId > 0 and not CanCast(currentId, "target", 300))) then
+    if casting or IsChanneling(300) or version < 120000 or version ~= 20505 and ((currentId ~= nil and currentId > 0 and not CanCast(currentId, "target", 300))) then
         WoWHACv5.pixel:SetColor(0, 0, 0)
     else
         local curr = WoWHACv5:GetCurrentHotKey()
