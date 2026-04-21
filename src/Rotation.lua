@@ -78,6 +78,7 @@ function SpellCastEventHandler:OnEnable()
     WoWHACv5:RegisterEvent("UNIT_SPELLCAST_START", "OnSpellcast")
     WoWHACv5:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", "OnSpellcast")
 end
+
 function WoWHACv5:OnSpellcast(event, unit, _, _, spellId)
     if unit == "player" then
         WoWHACv5.pixel:SetColor(0, 0, 0)
@@ -95,6 +96,7 @@ function WoWHACv5:OnSpellcast(event, unit, _, _, spellId)
     --    end
     --end
 end
+
 local version = select(4, GetBuildInfo())
 
 function WoWHACv5:UpdatePixel()
