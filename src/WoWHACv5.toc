@@ -4,7 +4,7 @@
 ## Author: CKATEPTb
 ## Version: 2.2.0
 ## SavedVariables: WoWHACv5DB
-## OptionalDeps: WeakAuras, ConRO, Hekili, MaxDps, HeroRotation, Ovale, JustAC
+## OptionalDeps: WeakAuras, ConRO, Hekili, MaxDps, HeroRotation, Ovale, JustAC, RotationHelper
 
 embeds.xml
 Backports\CAddOns.lua
@@ -18,6 +18,7 @@ Frames\ToggleHekiliFrame.lua
 Providers\Provider.lua
 Providers\AssistedCombat.lua
 Providers\JustACProvider.lua
+Providers\RotationHelperProvider.lua
 Providers\SimpleAssistedCombat.lua
 Providers\HekiliProvider.lua
 Providers\ConROProvider.lua
