@@ -9,15 +9,23 @@ local function GetItemCooldownDuration(itemId)
 end
 
 local function GetCooldownDuration(spellId)
-    local itemName = GetItemInfo(spellId)
-    if itemName ~= null then
-        return GetItemCooldownDuration(spellId)
-    end
-    local cd = C_Spell.GetSpellCooldown(spellId)
-    if cd then
-        return ((cd.startTime + cd.duration) - GetTime()) * 1000
-    end
-    return 0
+    local ok, result = pcall(function()
+        local itemName = GetItemInfo(spellId)
+
+        if itemName then
+            return GetItemCooldownDuration(spellId) or 0
+        end
+
+        local cd = C_Spell.GetSpellCooldown(spellId)
+
+        if cd then
+            return math.max(0, ((cd.startTime + cd.duration) - GetTime()) * 1000)
+        end
+
+        return 0
+    end)
+
+    return ok and result or 0
 end
 local function IsCooldownActive(spellId, threshold)
     return GetCooldownDuration(spellId) > threshold
