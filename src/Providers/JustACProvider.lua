@@ -10,6 +10,7 @@ WoWHACv5.providers["JustAC"] = function()
     local JustACAddon = LibStub("AceAddon-3.0"):GetAddon("JustAssistedCombat", true)
     local SpellQueue = LibStub("JustAC-SpellQueue", true)
     local ActionBarScanner = LibStub("JustAC-ActionBarScanner", true)
+    local BlizzardAPI = LibStub("JustAC-BlizzardAPI", true)
 
     if not JustACAddon or not SpellQueue or not SpellQueue.GetCurrentSpellQueue then
         return
@@ -104,9 +105,18 @@ WoWHACv5.providers["JustAC"] = function()
         return isItem and -id or id, hotkey
     end
 
+    local function IsSpellReady(spellId)
+        if not spellId or not BlizzardAPI or not BlizzardAPI.IsSpellReady then
+            return false
+        end
+
+        local ok, isReady = pcall(BlizzardAPI.IsSpellReady, spellId)
+        return ok and isReady == true
+    end
+
     local function GetInterruptSuggestion()
         local icon = JustACAddon.interruptIcon
-        if not IsFrameDisplayed(icon) then
+        if not IsFrameDisplayed(icon) or not IsSpellReady(icon.spellID) then
             return nil
         end
 
