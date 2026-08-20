@@ -6,12 +6,22 @@ WoWHACv5.providers["Hekili"] = function()
     pcall(WoWHACv5.ToggleHekiliFrame.Init, WoWHACv5.ToggleHekiliFrame)
 
     local provider = Hekili_Primary_B1;
-    local Keybind = provider.Keybinding
-
-    WoWHACv5:SecureHook(Keybind, "SetText", function(_, txt)
-        if provider.Ability ~= nil then
-            WoWHACv5:SetCurrentId(provider.Ability.id)
+    if provider == nil then
+        function WoWHACv5:GetCurrentHotKey()
+            return Hekili_D1_B1_KB:GetText()
         end
-        WoWHACv5:SetCurrentHotKey(txt)
-    end)
+
+        function WoWHACv5:GetCurrentId()
+            return Hekili_GetRecommendedAbility(1, 1) or 0
+        end
+    else
+        local Keybind = provider.Keybinding
+
+        WoWHACv5:SecureHook(Keybind, "SetText", function(_, txt)
+            if provider.Ability ~= nil then
+                WoWHACv5:SetCurrentId(provider.Ability.id)
+            end
+            WoWHACv5:SetCurrentHotKey(txt)
+        end)
+    end
 end
