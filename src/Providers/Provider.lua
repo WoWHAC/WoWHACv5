@@ -2,60 +2,34 @@ local _, WoWHACv5 = ...
 
 local currentId = 0
 local currentHotkey
-local nextId
-local nextHotkey
-local hasChanges = false
+local suggestionResolver
 
-function WoWHACv5:GetCurrentHotKey()
-    return currentHotkey
-end
-
-function WoWHACv5:GetCurrentId()
-    return currentId
-end
-
-function WoWHACv5:SetCurrentHotKey(hotkey)
+function WoWHACv5:SetCurrentSuggestion(id, hotkey)
     if hotkey then
         WoWHACv5:Debug("Current hotkey is: " .. hotkey)
     end
-    if currentHotkey ~= hotkey then
-        hasChanges = true
-    end
+    currentId = id
     currentHotkey = hotkey
 end
 
-function WoWHACv5:SetCurrentId(spellId)
-    currentId = spellId
+function WoWHACv5:SetSuggestionResolver(resolver)
+    suggestionResolver = type(resolver) == "function" and resolver or nil
 end
 
-function WoWHACv5:GetNextHotKey()
-    return nextHotkey
-end
-
-function WoWHACv5:GetNextId()
-    return nextId
-end
-
-function WoWHACv5:SetNextHotKey(hotkey)
-    if hotkey then
-        WoWHACv5:Debug("Next hotkey is: " .. hotkey)
+function WoWHACv5:GetCurrentSuggestion()
+    if suggestionResolver then
+        return suggestionResolver()
     end
-    if nextHotkey ~= hotkey then
-        hasChanges = true
+    return currentId, currentHotkey
+end
+
+function WoWHACv5:RegisterUntypedSuggestionProvider(name, getId)
+    self.providers[name] = function()
+        self:Log("Supplier found: " .. name .. ".")
+        self:SetSuggestionResolver(function()
+            return self.ActionBinding.ForUntypedId(getId())
+        end)
     end
-    nextHotkey = hotkey
-end
-
-function WoWHACv5:SetNextId(spellId)
-    nextId = spellId
-end
-
-function WoWHACv5:HasChanges()
-    return hasChanges
-end
-
-function WoWHACv5:NoChanges()
-    hasChanges = false
 end
 
 WoWHACv5.Provider = function()

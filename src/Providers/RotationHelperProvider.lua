@@ -4,30 +4,25 @@ WoWHACv5.providers = WoWHACv5.providers or {}
 WoWHACv5.providers["RotationHelper"] = function()
     WoWHACv5:Log("Supplier found: Synaptic.")
 
-    local RH = RotationHelper
-    local SpellSuggestion = RH and RH.modules and RH.modules.SpellSuggestion
-    if not SpellSuggestion then
+    local spellSuggestion = RotationHelper
+        and RotationHelper.modules
+        and RotationHelper.modules.SpellSuggestion
+    if not spellSuggestion then
         return
     end
 
-    local function GetSynapticHotKey()
-        local keybindLabel = SpellSuggestion.keybindLabel
-        local key = keybindLabel and keybindLabel:GetText()
-        return key or ""
-    end
-
-    local function GetSynapticId()
-        local tooltipData = SpellSuggestion.tooltipData
-        if tooltipData then
-            return tooltipData.type == "spell" and tooltipData.id or nil
+    local function GetSuggestion()
+        local data = spellSuggestion.tooltipData
+        if not data or type(data.id) ~= "number" then
+            return nil
+        end
+        if data.type == "spell" then
+            return data.id, WoWHACv5.ActionBinding.ForSpell(data.id)
+        end
+        if data.type == "item" then
+            return -data.id, WoWHACv5.ActionBinding.ForItem(data.id)
         end
     end
 
-    function WoWHACv5:GetCurrentHotKey()
-        return GetSynapticHotKey()
-    end
-
-    function WoWHACv5:GetCurrentId()
-        return GetSynapticId()
-    end
+    WoWHACv5:SetSuggestionResolver(GetSuggestion)
 end

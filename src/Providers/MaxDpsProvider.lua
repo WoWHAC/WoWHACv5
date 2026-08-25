@@ -8,31 +8,40 @@ WoWHACv5.providers["MaxDps"] = function()
         MaxDps.db.global.enabled = true
         MaxDpsSpellFrame:Show()
 
-        local provider = MaxDpsSpellFrame
-        local Keybind = provider.bindText
-
+        local currentSpellId
         WoWHACv5:SecureHook(MaxDps, "UpdateSpellFrame", function(_, spellID)
-            WoWHACv5:SetCurrentId(spellID)
-            WoWHACv5:SetCurrentHotKey(spellID and spellID > 0 and Keybind:GetText() or nil)
+            currentSpellId = spellID
+        end)
+
+        WoWHACv5:SetSuggestionResolver(function()
+            return currentSpellId, WoWHACv5.ActionBinding.ForSpell(currentSpellId)
         end)
     else
---         Это нужно сохранить, это поддержка legacy версий игры
+        -- Это нужно сохранить: здесь поддерживаются legacy-версии игры.
         WoWHACv5:RegisterMessage("WOWHACV4_WA_PRESENTS", function(_, _, isLoaded)
             if isLoaded then
+                local currentButton
                 WoWHACv5.ToggleBurstFrame:Show()
                 WoWHACv5:SecureHook(WeakAuras, "ScanEvents", function(event, _)
                     if event == "MAXDPS_COOLDOWN_UPDATE" then
+                        currentButton = nil
                         for _, frame in pairs(MaxDps.Frames) do
                             if frame and frame:IsVisible() then
                                 if WoWHACv5.burst or frame.ovType ~= "cooldown" then
                                     local button = frame:GetParent()
-                                    WoWHACv5:SetCurrentHotKey(button.HotKey:GetText())
-                                    return
+                                    if WoWHACv5.ActionBinding.ForButton(button) then
+                                        currentButton = button
+                                        return
+                                    end
                                 end
                             end
                         end
                         return
                     end
+                end)
+
+                WoWHACv5:SetSuggestionResolver(function()
+                    return nil, WoWHACv5.ActionBinding.ForButton(currentButton)
                 end)
             else
                 WoWHACv5:Log("To use the MaxDps as rotation provider, you need to install WeakAuras.")

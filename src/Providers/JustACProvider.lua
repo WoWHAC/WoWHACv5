@@ -9,7 +9,6 @@ WoWHACv5.providers["JustAC"] = function()
 
     local JustACAddon = LibStub("AceAddon-3.0"):GetAddon("JustAssistedCombat", true)
     local SpellQueue = LibStub("JustAC-SpellQueue", true)
-    local ActionBarScanner = LibStub("JustAC-ActionBarScanner", true)
     local BlizzardAPI = LibStub("JustAC-BlizzardAPI", true)
 
     if not JustACAddon or not SpellQueue or not SpellQueue.GetCurrentSpellQueue then
@@ -19,7 +18,7 @@ WoWHACv5.providers["JustAC"] = function()
     local nextCVarCheck = 0
 
     local function IsHotkeyAvailable(hotkey)
-        return type(hotkey) == "string" and hotkey ~= ""
+        return WoWHACv5.Binding.IsSupported(hotkey)
     end
 
     local function IsFrameDisplayed(frame)
@@ -51,45 +50,11 @@ WoWHACv5.providers["JustAC"] = function()
         return not alphaOk or hasVisibleAlpha
     end
 
-    local function GetCachedHotkey(icon)
-        if not icon then
-            return nil
+    local function GetHotkey(id, isItem, _, itemCastSpellID)
+        if isItem then
+            return WoWHACv5.ActionBinding.ForItem(id, itemCastSpellID)
         end
-
-        if IsHotkeyAvailable(icon.cachedHotkey) then
-            return icon.cachedHotkey
-        end
-
-        local hotkeyText = icon.hotkeyText
-        if hotkeyText and hotkeyText.GetText then
-            local hotkey = hotkeyText:GetText()
-            if IsHotkeyAvailable(hotkey) then
-                return hotkey
-            end
-        end
-    end
-
-    local function GetHotkey(id, isItem, icon, itemCastSpellID)
-        local hotkey
-        local scannerAvailable = false
-
-        if ActionBarScanner then
-            if isItem and ActionBarScanner.GetItemHotkey then
-                scannerAvailable = true
-                hotkey = ActionBarScanner.GetItemHotkey(id, itemCastSpellID)
-            elseif not isItem and ActionBarScanner.GetSpellHotkey then
-                scannerAvailable = true
-                hotkey = ActionBarScanner.GetSpellHotkey(id)
-            end
-        end
-
-        if IsHotkeyAvailable(hotkey) then
-            return hotkey
-        end
-
-        -- An empty scanner result is authoritative. Falling back to a pooled
-        -- icon's old text could press the previous defensive suggestion.
-        return not scannerAvailable and GetCachedHotkey(icon) or nil
+        return WoWHACv5.ActionBinding.ForSpell(id)
     end
 
     local function GetIconSuggestion(icon, id, isItem)
@@ -210,13 +175,5 @@ WoWHACv5.providers["JustAC"] = function()
 
     EnsureLowHealthWarningEnabled(true)
 
-    function WoWHACv5:GetCurrentHotKey()
-        local _, hotkey = GetCurrentSuggestion()
-        return hotkey or ""
-    end
-
-    function WoWHACv5:GetCurrentId()
-        local id = GetCurrentSuggestion()
-        return id
-    end
+    WoWHACv5:SetSuggestionResolver(GetCurrentSuggestion)
 end

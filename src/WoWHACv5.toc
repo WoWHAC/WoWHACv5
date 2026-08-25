@@ -10,9 +10,11 @@ embeds.xml
 Backports\CAddOns.lua
 Backports\CSpell.lua
 Bootstrap.lua
+Utils\Binding.lua
+Utils\ActionSlots.lua
+Utils\ActionBinding.lua
+Utils\Protocol.lua
 Frames\PixelFrame.lua
-Utils\Keybinds.lua
-Utils\Steganography.lua
 Frames\ToggleBurstFrame.lua
 Frames\ToggleHekiliFrame.lua
 Providers\Provider.lua
@@ -29,5 +31,4 @@ Providers\MaxDpsProvider.lua
 Providers\OvaleProvider.lua
 Handlers\PlayerLoginHandler.lua
 Rotation.lua
-
 
