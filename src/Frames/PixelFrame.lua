@@ -1,6 +1,7 @@
 local _, WoWHACv5 = ...
 
-local STRIP_WIDTH = #WoWHACv5.Protocol.CALIBRATION_BYTES + 2
+local CALIBRATION_BYTES = { 0, 64, 128, 192, 255 }
+local STRIP_WIDTH = #CALIBRATION_BYTES + 2
 local DATA_PIXEL_INDICES = { 1, STRIP_WIDTH }
 
 local PixelFrame = {}
@@ -73,7 +74,7 @@ function PixelFrame:init()
 
     self:RefreshLayout()
     self:SetCalibrationColors()
-    self:SetNoOp()
+    self:SetColor(0, 0, 0)
 end
 
 function PixelFrame:RefreshLayout()
@@ -105,17 +106,16 @@ local function SetDataColor(pixelFrame, r, g, b)
     return changed
 end
 
-function PixelFrame:SetEncoded(encoded)
-    encoded = encoded or WoWHACv5.Protocol.NO_OP
-    return SetDataColor(self, encoded.red, encoded.green, encoded.blue)
-end
-
-function PixelFrame:SetNoOp()
-    return self:SetEncoded(WoWHACv5.Protocol.NO_OP)
+function PixelFrame:SetColor(red, green, blue)
+    if red == 0 and green == 0 and blue == 0 then
+        local noOp = WoWHACv5.Protocol.NO_OP
+        red, green, blue = noOp.red, noOp.green, noOp.blue
+    end
+    return SetDataColor(self, red, green, blue)
 end
 
 function PixelFrame:SetCalibrationColors()
-    for index, byte in ipairs(WoWHACv5.Protocol.CALIBRATION_BYTES) do
+    for index, byte in ipairs(CALIBRATION_BYTES) do
         local level = byte / 255
         SetTextureColor(self.pixels[index + 1], self.legacy, level, level, level)
     end

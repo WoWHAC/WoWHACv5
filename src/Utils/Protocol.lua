@@ -2,8 +2,6 @@ local _, WoWHACv5 = ...
 
 local Protocol = {}
 
-Protocol.CALIBRATION_BYTES = { 0, 64, 128, 192, 255 }
-
 local GRAY_INVERSE_4 = {
     [0] = 0,
     [1] = 1,

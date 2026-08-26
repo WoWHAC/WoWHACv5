@@ -31,6 +31,10 @@ local function IsCooldownActive(spellId, threshold)
     return GetCooldownDuration(spellId) > threshold
 end
 
+local function IsGCDActive(threshold)
+    return IsCooldownActive(61304, threshold)
+end
+
 local function IsChanneling(threshold)
     local _, _, _, _, endTimeMS = UnitChannelInfo("player")
     if not endTimeMS then
@@ -52,6 +56,9 @@ local function CanCast(spellID, unit, threshold)
     if not usable then
         return false
     end
+    --if IsGCDActive(threshold*2) then
+    --    return false
+    --end
     if IsCooldownActive(spellID, threshold) then
         return false, "On cooldown"
     end
@@ -80,32 +87,39 @@ function SpellCastEventHandler:OnEnable()
     WoWHACv5:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", "OnSpellcast")
 end
 
-function WoWHACv5:OnSpellcast(_, unit)
-    if unit ~= "player" then
-        return
+function WoWHACv5:OnSpellcast(event, unit, _, _, spellId)
+    if unit == "player" then
+        WoWHACv5.pixel:SetColor(0, 0, 0)
     end
-
-    WoWHACv5.pixel:SetNoOp()
+    local next = WoWHACv5:GetNextHotKey();
+    if next then
+        WoWHACv5:SetCurrentHotKey(next)
+        WoWHACv5:SetCurrentId(WoWHACv5:GetNextId())
+    end
+    --if event == "UNIT_SPELLCAST_CHANNEL_START" then
+    --    local next = WoWHACv5:GetNextHotKey();
+    --    if next then
+    --        WoWHACv5:SetCurrentHotKey(next)
+    --        WoWHACv5:SetCurrentId(WoWHACv5:GetNextId())
+    --    end
+    --end
 end
 
 local version = select(4, GetBuildInfo())
 
 function WoWHACv5:UpdatePixel()
     local casting = UnitCastingInfo("player") ~= nil
-    local currentId, currentHotkey = WoWHACv5:GetCurrentSuggestion()
-    local cannotCastOnLegacyClient = version < 120000
-        and version ~= 20505
-        and currentId ~= nil
-        and currentId > 0
-        and not CanCast(currentId, "target", 300)
-
-    if casting or IsChanneling(300) or cannotCastOnLegacyClient then
-        WoWHACv5.pixel:SetNoOp()
-        return
+    local currentId = WoWHACv5:GetCurrentId()
+    if casting or IsChanneling(300) or (version < 120000 and version ~= 20505) and ((currentId ~= nil and currentId > 0 and not CanCast(currentId, "target", 300))) then
+        WoWHACv5.pixel:SetColor(0, 0, 0)
+    else
+        local curr = WoWHACv5:GetCurrentHotKey()
+        if curr == nil then
+            return
+        end
+        local rgb = WoWHACv5.Steganography(curr)
+        WoWHACv5.pixel:SetColor(rgb.red, rgb.green, rgb.blue)
     end
-
-    local encoded = WoWHACv5.Protocol.EncodeBinding(currentHotkey)
-    WoWHACv5.pixel:SetEncoded(encoded)
 end
 
 WoWHACv5:ScheduleRepeatingTimer("UpdatePixel", 0.1)

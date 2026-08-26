@@ -6,8 +6,10 @@ local ACTION_CODES = {
     ENTER = 0x28,
     ESCAPE = 0x29,
     BACKSPACE = 0x2A,
+    BKSP = 0x2A,
     TAB = 0x2B,
     SPACE = 0x2C,
+    SPBAR = 0x2C,
     ["-"] = 0x2D,
     MINUS = 0x2D,
     ["="] = 0x2E,
@@ -43,33 +45,48 @@ local ACTION_CODES = {
     SLASH = 0x38,
     OEM2 = 0x38,
     CAPSLOCK = 0x39,
+    CAPS = 0x39,
     PRINTSCREEN = 0x46,
     SCROLLLOCK = 0x47,
     PAUSE = 0x48,
     INSERT = 0x49,
+    INS = 0x49,
     HOME = 0x4A,
     PAGEUP = 0x4B,
+    PGUP = 0x4B,
     DELETE = 0x4C,
+    DEL = 0x4C,
     END = 0x4D,
     PAGEDOWN = 0x4E,
+    PGDN = 0x4E,
     RIGHT = 0x4F,
     LEFT = 0x50,
     DOWN = 0x51,
     UP = 0x52,
     NUMLOCK = 0x53,
+    NMLK = 0x53,
     NUMPADDIVIDE = 0x54,
+    ["NP/"] = 0x54,
     NUMPADMULTIPLY = 0x55,
+    ["NP*"] = 0x55,
     NUMPADMINUS = 0x56,
+    ["NP-"] = 0x56,
     NUMPADPLUS = 0x57,
+    ["NP+"] = 0x57,
     NUMPADENTER = 0x58,
+    NPENTER = 0x58,
     NUMPADDECIMAL = 0x63,
+    ["NP."] = 0x63,
     NONUSBACKSLASH = 0x64,
     OEM102 = 0x64,
     APPLICATION = 0x65,
     NUMPADEQUAL = 0x67,
     NUMPADEQUALS = 0x67,
+    ["NP="] = 0x67,
     BUTTON4 = 0x74,
     BUTTON5 = 0x75,
+    MB4 = 0x74,
+    MB5 = 0x75,
 }
 
 local MODIFIERS = {
@@ -85,9 +102,11 @@ end
 for digit = 1, 9 do
     ACTION_CODES[tostring(digit)] = 0x1D + digit
     ACTION_CODES["NUMPAD" .. digit] = 0x58 + digit
+    ACTION_CODES["NP" .. digit] = 0x58 + digit
 end
 ACTION_CODES["0"] = 0x27
 ACTION_CODES.NUMPAD0 = 0x62
+ACTION_CODES.NP0 = 0x62
 
 for number = 1, 24 do
     ACTION_CODES["F" .. number] = number <= 12
@@ -145,11 +164,6 @@ function Binding.Parse(rawBinding)
         return 0, 0
     end
     return action, modifiers, key
-end
-
-function Binding.IsSupported(rawBinding)
-    local action = Binding.Parse(rawBinding)
-    return action ~= 0
 end
 
 function Binding.IsActionCodeSupported(action)
