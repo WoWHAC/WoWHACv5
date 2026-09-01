@@ -2,9 +2,9 @@
 ## Title: WoWHACv5
 ## Notes: Auxiliary addon for third party software "WoWHACv5".
 ## Author: CKATEPTb
-## Version: 2.2.1
+## Version: 2.3.0
 ## SavedVariables: WoWHACv5DB
-## OptionalDeps: WeakAuras, ConRO, Hekili, MaxDps, HeroRotation, Ovale, JustAC, BetterAssistant, RotationHelper
+## OptionalDeps: WeakAuras, ConRO, Hekili, MaxDps, HeroRotation, AethysRotation, Ovale, JustAC, BetterAssistant, RotationHelper
 
 embeds.xml
 Backports\CAddOns.lua
@@ -27,6 +27,7 @@ Providers\HekiliProvider.lua
 Providers\ConROProvider.lua
 Providers\ConROCProvider.lua
 Providers\HeroRotationProvider.lua
+Providers\AethysRotationProvider.lua
 Providers\MaxDpsProvider.lua
 Providers\OvaleProvider.lua
 Handlers\PlayerLoginHandler.lua
