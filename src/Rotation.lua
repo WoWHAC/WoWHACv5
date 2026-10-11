@@ -106,20 +106,32 @@ function WoWHACv5:OnSpellcast(event, unit, _, _, spellId)
 end
 
 local version = select(4, GetBuildInfo())
+-- Match JustAC's client identity check; the interface number is not a game type.
+local isForever = WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
 
 function WoWHACv5:UpdatePixel()
-    local casting = UnitCastingInfo("player") ~= nil
-    local currentId = WoWHACv5:GetCurrentId()
-    if casting or IsChanneling(300) or (version < 120000 and version ~= 20505) and ((currentId ~= nil and currentId > 0 and not CanCast(currentId, "target", 300))) then
-        WoWHACv5.pixel:SetColor(0, 0, 0)
-    else
-        local curr = WoWHACv5:GetCurrentHotKey()
-        if curr == nil then
+    if isForever then
+        -- JustAC holds its queue while channeling. Check only the presence of
+        -- the player's cast/channel, without legacy castability or timestamps.
+        if UnitCastingInfo("player") ~= nil or UnitChannelInfo("player") ~= nil then
+            WoWHACv5.pixel:SetColor(0, 0, 0)
             return
         end
-        local rgb = WoWHACv5.Steganography(curr)
-        WoWHACv5.pixel:SetColor(rgb.red, rgb.green, rgb.blue)
+    else
+        local casting = UnitCastingInfo("player") ~= nil
+        local currentId = WoWHACv5:GetCurrentId()
+        if casting or IsChanneling(300) or (version < 120000 and version ~= 20505) and ((currentId ~= nil and currentId > 0 and not CanCast(currentId, "target", 300))) then
+            WoWHACv5.pixel:SetColor(0, 0, 0)
+            return
+        end
     end
+
+    local curr = WoWHACv5:GetCurrentHotKey()
+    if curr == nil then
+        return
+    end
+    local rgb = WoWHACv5.Steganography(curr)
+    WoWHACv5.pixel:SetColor(rgb.red, rgb.green, rgb.blue)
 end
 
 WoWHACv5:ScheduleRepeatingTimer("UpdatePixel", 0.1)

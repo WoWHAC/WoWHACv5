@@ -22,8 +22,8 @@ if type(C_Spell.IsSpellUsable) ~= "function" then
     end
 end
 if type(C_Spell.IsSpellInRange) ~= "function" then
-    C_Spell.IsSpellInRange = function(spellId)
-        return IsSpellInRange(spellId)
+    C_Spell.IsSpellInRange = function(spellId, unit)
+        return IsSpellInRange(spellId, unit)
     end
 end
 if type(C_Spell.IsSpellHarmful) ~= "function" then

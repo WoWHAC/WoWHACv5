@@ -22,6 +22,19 @@ WoWHACv5.providers["JustAC"] = function()
         return type(hotkey) == "string" and hotkey ~= ""
     end
 
+    local function NormalizeHotkey(hotkey)
+        -- Newer JustAC editions expose the actual binding behind abbreviated
+        -- labels (such as Spc or SL). Older editions keep their existing labels.
+        if IsHotkeyAvailable(hotkey) and ActionBarScanner and ActionBarScanner.GetNormalizedHotkey then
+            local normalized = ActionBarScanner.GetNormalizedHotkey(hotkey)
+            if IsHotkeyAvailable(normalized) then
+                return normalized
+            end
+        end
+
+        return hotkey
+    end
+
     local function IsFrameDisplayed(frame)
         if not frame then
             return false
@@ -84,12 +97,12 @@ WoWHACv5.providers["JustAC"] = function()
         end
 
         if IsHotkeyAvailable(hotkey) then
-            return hotkey
+            return NormalizeHotkey(hotkey)
         end
 
         -- An empty scanner result is authoritative. Falling back to a pooled
         -- icon's old text could press the previous defensive suggestion.
-        return not scannerAvailable and GetCachedHotkey(icon) or nil
+        return not scannerAvailable and NormalizeHotkey(GetCachedHotkey(icon)) or nil
     end
 
     local function GetIconSuggestion(icon, id, isItem)
@@ -149,7 +162,8 @@ WoWHACv5.providers["JustAC"] = function()
     local function GetRotationSuggestion()
         local queue = SpellQueue.GetCurrentSpellQueue()
         local id = queue and queue[1]
-        if not id then
+        -- A waiting entry occupies position one but does not represent an item.
+        if not id or id == 0 or id == SpellQueue.WAIT_SENTINEL then
             return nil
         end
 
