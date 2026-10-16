@@ -3,6 +3,7 @@ if not addon:SupportsModernFeatures() then return end
 local Runtime = addon:NewModule("PriorityOverlays", "AceEvent-3.0")
 local active, cached = {}, {}
 local currentProfile, dirty = nil, true
+local bindingsDirty = false
 
 local function InCombat()
     return InCombatLockdown and InCombatLockdown() == true
@@ -80,6 +81,11 @@ function addon:RefreshPriorityActions()
                 cached[entry][key] = layer
             end
             layer.entry, layer.binding, layer.descriptors, layer.valid = entry, binding, descriptors, valid
+            layer.interrupt = false
+            for _, descriptor in ipairs(descriptors) do
+                if descriptor.type == "interrupt" then layer.interrupt = true; break end
+            end
+            layer.bindingCurrent = binding ~= nil
             local baseLevel = self.pixel.frame:GetFrameLevel()
             local level = baseLevel + #profile.actions - index + 1
             layer.root:SetFrameLevel(level)
@@ -93,8 +99,31 @@ function addon:RefreshPriorityActions()
             nextActive[#nextActive + 1] = layer
         end
     end
-    active, currentProfile, dirty = nextActive, profile, false
+    active, currentProfile, dirty, bindingsDirty = nextActive, profile, false, false
     return true
+end
+
+local function RecheckBindings(onlyInvalid)
+    local checker = addon.PriorityBindings and addon.PriorityBindings.IsCurrent
+    for _, layer in ipairs(active) do
+        if not onlyInvalid or not layer.bindingCurrent then
+            local ok, current = false, false
+            if layer.binding and type(checker) == "function" then
+                ok, current = pcall(checker, layer.entry, layer.binding)
+            end
+            layer.bindingCurrent = ok and current == true
+            if not layer.bindingCurrent then layer.root:SetAlpha(0) end
+        end
+    end
+end
+
+local function BindingsChanged()
+    if not InCombat() then addon:RefreshPriorityActions(); return end
+    -- A slot/spell notification does not mean every binding changed. Keep each
+    -- preallocated layer whose public action/key mapping is still valid. Never
+    -- recolor or allocate layers in combat; changed/unknown mappings stay hidden.
+    bindingsDirty = true
+    RecheckBindings(false)
 end
 
 function addon:InvalidatePriorityActions(resetUsage)
@@ -113,12 +142,18 @@ function addon:UpdatePriorityActions()
         self:InvalidatePriorityActions()
     end
     if dirty and not self:RefreshPriorityActions() then return end
+    if bindingsDirty then
+        if InCombat() then RecheckBindings(true)
+        else self:RefreshPriorityActions() end
+    end
     local evaluator = self.PriorityConditions
     local idle = PlayerIdle()
-    local providerAvailable = type(self.GetActiveProvider) ~= "function" or self:GetActiveProvider() ~= nil
     for _, layer in ipairs(active) do
         layer.root:SetAlpha(0)
-        if providerAvailable and idle and profile.enabled == true and layer.entry.enabled == true and layer.binding and layer.valid then
+        -- Interrupt is an explicit request to react to the enemy cast even
+        -- while the player is casting/channeling. Its other gates still apply.
+        if (idle or layer.interrupt) and profile.enabled == true
+            and layer.entry.enabled == true and layer.binding and layer.bindingCurrent and layer.valid then
             for index, descriptor in ipairs(layer.descriptors) do
                 local gate = layer.gates[index]
                 gate:SetAlpha(0)
@@ -150,7 +185,11 @@ function Runtime:OnEnable()
 end
 
 function Runtime:OnProviderChanged()
-    addon:InvalidatePriorityActions()
+    if not InCombat() then addon:InvalidatePriorityActions(); return end
+    -- The provider is the fallback beneath these actions. Its failure must not
+    -- invalidate their already allocated bindings and condition layers.
+    local conditions = addon.PriorityConditions
+    if conditions and conditions.ResetUsage then conditions.ResetUsage() end
 end
 
 local tracked = {
@@ -163,16 +202,23 @@ local tracked = {
 
 function Runtime:OnRuntimeEvent(event, ...)
     local unit = ...
-    if event:sub(1, 14) == "UNIT_SPELLCAST_" and addon.IsPriorityValuePublic(unit) and unit == "player" then
-        HideAll()
+    if event == "PLAYER_SPECIALIZATION_CHANGED"
+        and (not addon.IsPriorityValuePublic(unit) or unit ~= "player") then return end
+    if event:sub(1, 15) == "UNIT_SPELLCAST_" and addon.IsPriorityValuePublic(unit) and unit == "player" then
+        -- Repeated player actions must not flicker an interrupt between ticks.
+        -- Its existing gates stay active until the next normal condition update.
+        for _, layer in ipairs(active) do
+            if not layer.interrupt then layer.root:SetAlpha(0) end
+        end
     end
     local conditions = addon.PriorityConditions
     if conditions and conditions.TrackEvent then conditions.TrackEvent(event, ...) end
     if not tracked[event] then
         local resetUsage = event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_SPECIALIZATION_CHANGED"
             or event == "ACTIVE_TALENT_GROUP_CHANGED"
-        addon:InvalidatePriorityActions(resetUsage)
-    elseif event == "PLAYER_REGEN_ENABLED" and dirty then
+        if resetUsage then addon:InvalidatePriorityActions(true)
+        else BindingsChanged() end
+    elseif event == "PLAYER_REGEN_ENABLED" and (dirty or bindingsDirty) then
         addon:RefreshPriorityActions()
     end
 end

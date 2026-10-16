@@ -16,7 +16,7 @@ local BARS = {
 }
 
 local function Call(fn, ...)
-    if type(fn) ~= "function" then return nil end
+    if not Public(fn) or type(fn) ~= "function" then return nil end
     local ok, first, second = pcall(fn, ...)
     if ok and Public(first) and Public(second) then return first, second end
 end
@@ -64,15 +64,26 @@ local function ActionBarAPI(name, legacy)
     return C_ActionBar and C_ActionBar[name] or legacy
 end
 
-local function MainPage()
-    local vehicle = Call(ActionBarAPI("HasVehicleActionBar", HasVehicleActionBar))
+local function MainPage(strict)
+    local vehicleAPI = ActionBarAPI("HasVehicleActionBar", HasVehicleActionBar)
+    local vehicle = Call(vehicleAPI)
+    if strict and (not Public(vehicleAPI) or vehicleAPI ~= nil and type(vehicle) ~= "boolean") then return nil end
     if vehicle == true then return ActionID(Call(ActionBarAPI("GetVehicleBarIndex", GetVehicleBarIndex))) end
-    local override = Call(ActionBarAPI("HasOverrideActionBar", HasOverrideActionBar))
+    local overrideAPI = ActionBarAPI("HasOverrideActionBar", HasOverrideActionBar)
+    local override = Call(overrideAPI)
+    if strict and (not Public(overrideAPI) or overrideAPI ~= nil and type(override) ~= "boolean") then return nil end
     if override == true then return ActionID(Call(ActionBarAPI("GetOverrideBarIndex", GetOverrideBarIndex))) end
-    local temporary = Call(ActionBarAPI("HasTempShapeshiftActionBar", HasTempShapeshiftActionBar))
+    local temporaryAPI = ActionBarAPI("HasTempShapeshiftActionBar", HasTempShapeshiftActionBar)
+    local temporary = Call(temporaryAPI)
+    if strict and (not Public(temporaryAPI) or temporaryAPI ~= nil and type(temporary) ~= "boolean") then return nil end
     if temporary == true then return ActionID(Call(ActionBarAPI("GetTempShapeshiftBarIndex", GetTempShapeshiftBarIndex))) end
-    local page = ActionID(Call(ActionBarAPI("GetActionBarPage", GetActionBarPage))) or 1
-    local bonus = Call(ActionBarAPI("GetBonusBarOffset", GetBonusBarOffset))
+    local page = ActionID(Call(ActionBarAPI("GetActionBarPage", GetActionBarPage)))
+    if strict and not page then return nil end
+    page = page or 1
+    local bonusAPI = ActionBarAPI("GetBonusBarOffset", GetBonusBarOffset)
+    local bonus = Call(bonusAPI)
+    if strict and (not Public(bonusAPI) or bonusAPI ~= nil and (type(bonus) ~= "number" or bonus < 0
+        or bonus == math.huge or bonus ~= math.floor(bonus))) then return nil end
     if page == 1 and type(bonus) == "number" and bonus > 0 then return bonus + 6 end
     return page
 end
@@ -83,7 +94,7 @@ local function VisitSlots(visit)
         for button = 1, 12 do
             local frame = _G["ActionButton" .. button]
             local slot = frame and ActionID(Call(frame.CalculateAction, frame)) or (mainPage - 1) * 12 + button
-            visit(slot, "ACTIONBUTTON" .. button, "ActionButton" .. button)
+            visit(slot, "ACTIONBUTTON" .. button, "ActionButton" .. button, button, mainPage)
         end
     end
     for _, bar in ipairs(BARS) do
@@ -145,9 +156,60 @@ function Bindings.GetActionForHotkey(hotkey)
     return key and displayBindings[key] or nil
 end
 
+function Bindings.IsCurrent(entry, binding)
+    -- Revalidate only this public mapping. An unrelated slot/spell event must
+    -- not suspend every preallocated priority action until combat ends.
+    if not Public(entry) or type(entry) ~= "table" or not Public(binding) or type(binding) ~= "table" then return false end
+    local kind, id = entry.kind, ActionID(entry.id)
+    if not Public(kind) or (kind ~= "spell" and kind ~= "item") or not id then return false end
+    local command, hotkey = binding.command, binding.hotkey
+    if not Public(command) or type(command) ~= "string" or command == "" or not ValidBinding(hotkey) then return false end
+    local first, second = Call(GetBindingKey, command)
+    if first ~= hotkey and second ~= hotkey then return false end
+    -- Base bindings remain registered while a secure override redirects a key.
+    -- Only the exact captured command may keep this layer eligible.
+    if Call(GetBindingAction, hotkey, true) ~= command then return false end
+
+    local rawSlot = binding.slot
+    if not Public(rawSlot) then return false end
+    if rawSlot == nil then
+        local name = Call(addon.GetPriorityActionInfo, addon, kind, id)
+        return type(name) == "string" and name ~= "" and command == kind:upper() .. " " .. name
+    end
+    local slot = ActionID(rawSlot)
+    if not slot then return false end
+    local mainButton = binding.mainButton
+    if not Public(mainButton) then return false end
+    if mainButton ~= nil then
+        mainButton = ActionID(mainButton)
+        local savedPage = ActionID(binding.mainPage)
+        local frameName = binding.frameName
+        if not mainButton or mainButton > 12 or not savedPage or not Public(frameName)
+            or type(frameName) ~= "string" or frameName == "" then return false end
+        local page = MainPage(true)
+        if not page or page ~= savedPage then return false end
+        local frame = _G[frameName]
+        if not Public(frame) then return false end
+        local currentSlot = (page - 1) * 12 + mainButton
+        if frame ~= nil then
+            if type(frame) ~= "table" and type(frame) ~= "userdata" then return false end
+            local calculate = frame.CalculateAction
+            if not Public(calculate) then return false end
+            if calculate ~= nil then
+                currentSlot = ActionID(Call(calculate, frame))
+                if not currentSlot then return false end
+            end
+        end
+        if currentSlot ~= slot then return false end
+    end
+    local currentKind, currentID = SlotAction(slot)
+    return currentKind == kind and currentID ~= nil and (currentID == id
+        or kind == "spell" and BaseSpell(currentID) == BaseSpell(id))
+end
+
 function Bindings.Build(entries)
-    -- Public configuration is read only outside combat. A binding/bar change
-    -- invalidates every old layer before this snapshot can be used again.
+    -- Full scans and layer allocation remain outside combat. IsCurrent may
+    -- revalidate a captured public mapping without rebuilding any UI.
     if InCombatLockdown and InCombatLockdown() then return nil end
     local result, configured = {}, {}
     for _, entry in ipairs(entries) do
@@ -156,28 +218,38 @@ function Bindings.Build(entries)
             configured[key] = entry
         end
     end
-    local function Remember(kind, id, hotkey, slot)
+    local function Remember(kind, id, hotkey, slot, command, frameName, mainButton, mainPage)
         if not kind or not id or not ValidBinding(hotkey) then return end
         for key, entry in pairs(configured) do
             local matches = entry.kind == kind and (entry.id == id
                 or kind == "spell" and BaseSpell(entry.id) == BaseSpell(id))
             if matches and not result[key] then
                 local rgb = addon.Protocol.EncodeBinding(hotkey)
-                result[key] = { hotkey = hotkey, red = rgb.red, green = rgb.green, blue = rgb.blue, slot = slot }
+                result[key] = {
+                    hotkey = hotkey, red = rgb.red, green = rgb.green, blue = rgb.blue, slot = slot,
+                    command = command, frameName = frameName, mainButton = mainButton, mainPage = mainPage,
+                }
             end
         end
     end
-    local function Scan(slot, command, frameName)
-        local key = CommandKey(command) or CommandKey("CLICK " .. frameName .. ":LeftButton")
+    local function Scan(slot, command, frameName, mainButton, mainPage)
+        local key = CommandKey(command)
+        if not key then
+            command = "CLICK " .. frameName .. ":LeftButton"
+            key = CommandKey(command)
+        end
         if not key then return end
         local kind, id = SlotAction(slot)
-        Remember(kind, id, key, slot)
+        Remember(kind, id, key, slot, command, frameName, mainButton, mainPage)
     end
     VisitSlots(Scan)
     for key, entry in pairs(configured) do
         if not result[key] then
-            local name = addon:GetPriorityActionInfo(entry.kind, entry.id)
-            if name then Remember(entry.kind, entry.id, CommandKey(entry.kind:upper() .. " " .. name)) end
+            local name = Call(addon.GetPriorityActionInfo, addon, entry.kind, entry.id)
+            if type(name) == "string" and name ~= "" then
+                local command = entry.kind:upper() .. " " .. name
+                Remember(entry.kind, entry.id, CommandKey(command), nil, command)
+            end
         end
     end
     return result

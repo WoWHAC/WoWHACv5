@@ -85,9 +85,17 @@ the editor in combat is deferred until combat ends.
 Click an action to edit its conditions. All conditions must pass. Available
 rules include player combat, a living hostile target, health, primary
 resource, aura presence/absence, range, activation glow, an interruptible target cast/channel,
-repeat delay, usage limits, enemies in range, and mounted state. Readiness,
-usability, a valid key binding, and player cast/channel suppression apply
-independently. New entries start with player-combat and action-range conditions.
+repeat delay, usage limits, enemies in range, and mounted state. Actions require
+a valid key binding. Ordinary actions also require readiness and usability,
+and wait until your own cast or channel ends. Spells with the Interrupt condition
+use a separate readiness check: the current hostile target must be casting or
+channeling an interruptible spell, and the interrupt's remaining cooldown must
+be below 200 ms. A missing cooldown object means ready. The implicit range check
+blocks an out-of-range result but allows an unknown result; an explicitly enabled
+In range condition remains strict. Interrupt spells skip the general usability
+and player-casting checks. They read the current target on every update, including
+when it was already casting before you selected it. No enemy count is required
+unless you add that condition. New entries start with player-combat and action-range conditions.
 Each condition appears as a checkbox, name, and inline arguments. Hover the
 circled **?** after its name for an explanation and examples. Check a rule
 to use it, or uncheck it to exclude it; unchecked arguments remain available
@@ -120,12 +128,20 @@ binding color is fixed; condition frames control only alpha, and frame order
 selects the highest eligible action. Calibration pixels are unchanged. Native
 secret-capable alpha APIs consume restricted values directly, without reading
 rendered alpha or converting those values into ordinary Lua decisions.
-Unsupported or unknown condition data keeps the affected action transparent.
+Unsupported or unknown condition data keeps the affected action transparent,
+except for the interrupt cooldown and implicit range cases described above.
+Enemy target uses separate native alpha gates for target existence, being alive,
+and attackability. These combine with Interrupt and other enabled conditions
+through the same AND chain.
 
 Bindings come from standard action bars, recognized macros, and direct
-spell/item bindings. Binding snapshots and layer changes refresh outside
-combat; edits or binding changes during combat hide stale layers until a safe
-refresh. The provider remains available during that pause.
+spell/item bindings. Full binding scans and layer changes happen outside combat.
+During combat, action-bar and binding updates revalidate each existing mapping;
+unchanged actions remain available. Only changed or unreadable mappings are
+hidden, and they recover if the original mapping becomes valid again. New
+bindings and profile edits take effect after combat. The provider remains
+available while priority layers await a safe refresh. Priority actions can run
+without an active provider, and a provider failure does not invalidate them.
 
 Usage limits count confirmed cast/channel/empower starts or instant successes
 once per attempt, including interrupted casts that already began. The window

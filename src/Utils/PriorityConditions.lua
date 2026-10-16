@@ -185,6 +185,25 @@ local function ThresholdCurve(condition)
     return curve
 end
 
+local interruptCooldownCurve
+local function InterruptCooldownCurve()
+    if interruptCooldownCurve then return interruptCooldownCurve end
+    if not C_CurveUtil or not C_CurveUtil.CreateCurve or not Enum or not Enum.LuaCurveType then return nil end
+    local curve = C_CurveUtil.CreateCurve()
+    curve:SetType(Enum.LuaCurveType.Step)
+    -- Allow the final 200 ms of the cooldown for the interrupt recommendation.
+    -- Encoded priority pixels need binary alpha, not a dimmed blocked icon.
+    curve:AddPoint(0, 1)
+    curve:AddPoint(0.2, 0)
+    interruptCooldownCurve = curve
+    return curve
+end
+
+local function InterruptSpellID(id)
+    local override = C_Spell and Read(C_Spell.GetOverrideSpell, id)
+    return ID(override) or id
+end
+
 function Conditions.Build(entry)
     if not Public(entry) or type(entry) ~= "table" then return { { type = "blocked" } } end
     local source = entry.conditions
@@ -192,11 +211,26 @@ function Conditions.Build(entry)
     if source == nil then source = {} end
     local configured = Conditions.Validate(source)
     if not configured then return { { type = "blocked" } } end
-    local descriptors = { { type = "ready" }, { type = "usable" } }
+    local spellInterrupt = false
+    for _, condition in ipairs(configured) do
+        if condition.type == "interrupt" and entry.kind == "spell" then spellInterrupt = true; break end
+    end
+    local descriptors = { { type = "ready", interrupt = spellInterrupt,
+        curve = spellInterrupt and InterruptCooldownCurve() or nil } }
+    -- Interrupts have their own cooldown/target checks. Spell usability can
+    -- suppress this urgent recommendation while the player is doing an action.
+    if not spellInterrupt then descriptors[#descriptors + 1] = { type = "usable" } end
     local haveRange, haveTarget, needRange, needTarget = false, false, false, false
     for _, condition in ipairs(configured) do
         if condition.type == "range" then haveRange = true end
-        if condition.type == "target" then haveTarget = true end
+        if condition.type == "target" and not haveTarget then
+            -- Keep every Enemy target predicate in its own native alpha gate.
+            -- Requiring readable booleans here would reject a restricted
+            -- result before it can combine with Interrupt or another condition.
+            descriptors[#descriptors + 1] = { type = "targetExists" }
+            descriptors[#descriptors + 1] = { type = "targetAlive" }
+            haveTarget = true
+        end
         if condition.type == "interrupt" then needRange, needTarget = true, true end
         if condition.type == "limit" then retainedSeconds = math.max(retainedSeconds, condition.windowMs / 1000) end
         if condition.type == "health" or condition.type == "resource" then
@@ -205,8 +239,8 @@ function Conditions.Build(entry)
         end
         descriptors[#descriptors + 1] = condition
     end
-    if needRange and not haveRange then descriptors[#descriptors + 1] = { type = "range" } end
-    if needTarget and not haveTarget then descriptors[#descriptors + 1] = { type = "target" } end
+    if needRange and not haveRange then descriptors[#descriptors + 1] = { type = "range", allowUnknown = spellInterrupt } end
+    if needTarget and not haveTarget then descriptors[#descriptors + 1] = { type = "interruptTarget" } end
     return descriptors
 end
 
@@ -214,9 +248,12 @@ local function BoolAlpha(frame, value, invert)
     -- No boolean arithmetic or comparison occurs before the secret check. The
     -- native setter consumes restricted booleans without revealing them to Lua.
     if not Public(value) then
-        if frame.SetAlphaFromBoolean then frame:SetAlphaFromBoolean(value, invert and 0 or 1, invert and 1 or 0) end
+        if frame.SetAlphaFromBoolean then
+            frame:SetAlphaFromBoolean(value, invert and 0 or 1, invert and 1 or 0)
+        end
     elseif type(value) == "boolean" then
-        if frame.SetAlphaFromBoolean then frame:SetAlphaFromBoolean(value, invert and 0 or 1, invert and 1 or 0)
+        if frame.SetAlphaFromBoolean then
+            frame:SetAlphaFromBoolean(value, invert and 0 or 1, invert and 1 or 0)
         else frame:SetAlpha((value ~= (invert == true)) and 1 or 0) end
     end
 end
@@ -324,7 +361,7 @@ local function UsageAlpha(frame, descriptor, entry)
     frame:SetAlpha(count < descriptor.allowance and 1 or 0)
 end
 
-local function ReadyAlpha(frame, entry)
+local function ReadyAlpha(frame, entry, descriptor)
     if entry.kind == "item" then
         local getter = (C_Item and C_Item.GetItemCooldown) or GetItemCooldown
         if not getter then return end
@@ -336,8 +373,23 @@ local function ReadyAlpha(frame, entry)
         return
     end
     if C_Spell and C_Spell.GetSpellCooldownDuration then
-        local duration = C_Spell.GetSpellCooldownDuration(entry.id, true)
-        if Public(duration) and duration and duration.IsZero then BoolAlpha(frame, duration:IsZero()) end
+        if descriptor.interrupt then
+            -- Use the remaining time, not IsZero(), which tests total duration.
+            local spellID = InterruptSpellID(entry.id)
+            local duration = C_Spell.GetSpellCooldownDuration(spellID)
+            if not Public(duration) then return end
+            if duration == nil then frame:SetAlpha(1)
+            elseif descriptor.curve and duration.EvaluateRemainingDuration then
+                frame:SetAlpha(duration:EvaluateRemainingDuration(descriptor.curve))
+            elseif duration.HasExpired then
+                BoolAlpha(frame, duration:HasExpired())
+            elseif duration.IsZero then
+                BoolAlpha(frame, duration:IsZero())
+            end
+        else
+            local duration = C_Spell.GetSpellCooldownDuration(entry.id, true)
+            if Public(duration) and duration and duration.IsZero then BoolAlpha(frame, duration:IsZero()) end
+        end
         return
     end
     local charges = (C_Spell and C_Spell.GetSpellCharges) or GetSpellCharges
@@ -360,7 +412,7 @@ local function ReadyAlpha(frame, entry)
     if Number(now) then frame:SetAlpha((duration == 0 or start + duration <= now) and 1 or 0) end
 end
 
-local function RangeAlpha(frame, entry)
+local function RangeAlpha(frame, entry, allowUnknown)
     local hasRange, getter
     if entry.kind == "item" then
         hasRange = (C_Item and C_Item.ItemHasRange) or ItemHasRange
@@ -369,27 +421,46 @@ local function RangeAlpha(frame, entry)
         hasRange = (C_Spell and C_Spell.SpellHasRange) or SpellHasRange
         getter = (C_Spell and C_Spell.IsSpellInRange) or IsSpellInRange
     end
-    if Read(hasRange, entry.id) == false then frame:SetAlpha(1); return end
+    -- Implicit interrupt range uses the resolved spell's current result directly.
+    -- A base-spell range flag must not bypass the override's range check.
+    if not allowUnknown then
+        local ranged = Read(hasRange, entry.id)
+        if ranged == false then frame:SetAlpha(1); return end
+    end
     if not getter then return end
-    local value = getter(entry.id, "target")
-    if Public(value) and type(value) == "number" then frame:SetAlpha(value == 1 and 1 or 0)
+    local id = allowUnknown and entry.kind == "spell" and InterruptSpellID(entry.id) or entry.id
+    local value = getter(id, "target")
+    if allowUnknown and Public(value) and value == nil then frame:SetAlpha(1)
+    elseif Public(value) and type(value) == "number" then frame:SetAlpha(value == 1 and 1 or 0)
     else BoolAlpha(frame, value) end
 end
 
-local function CastPresence(name, castBarID)
+local function CastPresence(name, castBarID, isTradeskill, spellID)
+    if ID(spellID) then return true end
     if Public(castBarID) and castBarID ~= nil then return true end
-    -- Older clients have no castBarID; a readable name is the only fallback.
+    -- An active cast/channel returns this NeverSecret boolean even when its
+    -- name is restricted and castBarID is absent. No cast returns no values.
+    if Public(isTradeskill) and type(isTradeskill) == "boolean" then return true end
     return Public(name) and type(name) == "string" and name ~= ""
+end
+
+local function InterruptibleAlpha(frame, notInterruptible)
+    -- Only called after confirming a cast. Blizzard's nullable flag treats
+    -- public nil like false; restricted booleans still go straight to the sink.
+    if Public(notInterruptible) and notInterruptible == nil then notInterruptible = false end
+    BoolAlpha(frame, notInterruptible, true)
 end
 
 local function InterruptAlpha(frame)
     if UnitCastingInfo then
-        local name, _, _, _, _, _, _, notInterruptible, _, castBarID = UnitCastingInfo("target")
-        if CastPresence(name, castBarID) then BoolAlpha(frame, notInterruptible, true); return end
+        local name, _, _, _, _, isTradeskill, _, notInterruptible, spellID, castBarID = UnitCastingInfo("target")
+        local present = CastPresence(name, castBarID, isTradeskill, spellID)
+        if present then InterruptibleAlpha(frame, notInterruptible); return end
     end
     if UnitChannelInfo then
-        local name, _, _, _, _, _, notInterruptible, _, _, _, castBarID = UnitChannelInfo("target")
-        if CastPresence(name, castBarID) then BoolAlpha(frame, notInterruptible, true) end
+        local name, _, _, _, _, isTradeskill, notInterruptible, spellID, _, _, castBarID = UnitChannelInfo("target")
+        local present = CastPresence(name, castBarID, isTradeskill, spellID)
+        if present then InterruptibleAlpha(frame, notInterruptible) end
     end
 end
 
@@ -447,7 +518,7 @@ local function Apply(frame, descriptor, entry)
     if not ID(entry.id) or not Public(entry.kind) or (entry.kind ~= "spell" and entry.kind ~= "item") then return end
     if not Public(descriptor.type) then return end
     local kind = descriptor.type
-    if kind == "ready" then ReadyAlpha(frame, entry)
+    if kind == "ready" then ReadyAlpha(frame, entry, descriptor)
     elseif kind == "usable" then
         local getter
         if entry.kind == "item" then
@@ -458,10 +529,15 @@ local function Apply(frame, descriptor, entry)
         if getter then BoolAlpha(frame, (getter(entry.id))) end
     elseif kind == "combat" then
         if UnitAffectingCombat then BoolAlpha(frame, UnitAffectingCombat("player")) end
+    elseif kind == "targetExists" then
+        if UnitExists then BoolAlpha(frame, UnitExists("target")) end
+    elseif kind == "targetAlive" then
+        if UnitIsDeadOrGhost then BoolAlpha(frame, UnitIsDeadOrGhost("target"), true) end
     elseif kind == "target" then
-        if Read(UnitExists, "target") ~= true or Read(UnitIsDeadOrGhost, "target") ~= false then return end
         if UnitCanAttack then BoolAlpha(frame, UnitCanAttack("player", "target")) end
-    elseif kind == "range" then RangeAlpha(frame, entry)
+    elseif kind == "interruptTarget" then
+        if UnitCanAttack then BoolAlpha(frame, UnitCanAttack("player", "target")) end
+    elseif kind == "range" then RangeAlpha(frame, entry, descriptor.allowUnknown)
     elseif kind == "health" or kind == "resource" then PercentAlpha(frame, descriptor)
     elseif kind == "aura" then AuraAlpha(frame, descriptor)
     elseif kind == "glow" then
