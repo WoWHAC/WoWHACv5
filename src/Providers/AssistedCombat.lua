@@ -158,4 +158,12 @@ WoWHACv5.providers["AssistedCombat"] = function()
     function WoWHACv5:GetCurrentId()
         return C_AssistedCombat.IsAvailable() and C_AssistedCombat.GetNextCastSpell() or 0
     end
+
+    if WoWHACv5:SupportsModernFeatures() then
+        function WoWHACv5:GetCurrentSuggestion()
+            local id = self:GetCurrentId()
+            if not self.PriorityActionID(id) then return nil, nil end
+            return id, GetKeyBindForSpellID(id)
+        end
+    end
 end

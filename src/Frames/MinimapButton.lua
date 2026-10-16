@@ -297,6 +297,10 @@ function Controls:RefreshSettings()
     local choice = frame.language
     for _, value in ipairs(LANGUAGE_CHOICES) do choice.values[value] = LanguageLabel(value) end
     choice:SelectValue(addon:GetLanguage(), true)
+    local recommendation = frame.recommendation
+    recommendation.label:SetText(L("Show recommendation icon"))
+    recommendation:SetChecked(addon:IsRecommendationIconEnabled())
+    recommendation:SetHitRectInsets(0, -math.min(296, recommendation.label:GetStringWidth() + 4), 0, 0)
 end
 
 function Controls:SelectLanguage(value)
@@ -311,7 +315,7 @@ function Controls:CreateSettings()
     local frame = CreateFrame("Frame", "WoWHACv5Settings", UIParent,
         BackdropTemplateMixin and "BackdropTemplate" or nil)
     self.settingsFrame = frame
-    frame:SetSize(380, 144)
+    frame:SetSize(380, 172)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("FULLSCREEN_DIALOG")
     frame:SetToplevel(true)
@@ -369,6 +373,21 @@ function Controls:CreateSettings()
             end
         end)
     end
+    local recommendation = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+    frame.recommendation = recommendation
+    recommendation:SetSize(28, 28)
+    recommendation:SetPoint("TOPLEFT", 20, -112)
+    recommendation.label = recommendation:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    recommendation.label:SetPoint("LEFT", recommendation, "RIGHT", 4, 0)
+    recommendation.label:SetWidth(296)
+    recommendation.label:SetJustifyH("LEFT")
+    recommendation.label:SetWordWrap(false)
+    recommendation:SetScript("OnClick", function(button)
+        if not self:IsInCombat() then
+            addon:SetRecommendationIconEnabled(not not button:GetChecked())
+        end
+        self:RefreshSettings()
+    end)
     local function HandleEscape()
         if not frame:IsShown() then return false end
         self:CloseSettings()

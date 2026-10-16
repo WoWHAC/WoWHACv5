@@ -528,4 +528,10 @@ WoWHACv5.providers[ADDON_NAME] = function(session)
         local id = GetCurrentSuggestion()
         return id
     end
+
+    if WoWHACv5:SupportsModernFeatures() then
+        function WoWHACv5:GetCurrentSuggestion()
+            return GetCurrentSuggestion()
+        end
+    end
 end

@@ -90,6 +90,7 @@ end
 function WoWHACv5:OnSpellcast(event, unit, _, _, spellId)
     if unit == "player" then
         WoWHACv5.pixel:SetColor(0, 0, 0)
+        if WoWHACv5.ClearRecommendationProvider then WoWHACv5:ClearRecommendationProvider() end
     end
     local next = WoWHACv5:GetNextHotKey();
     if next then
@@ -122,6 +123,7 @@ function WoWHACv5:UpdatePixel()
         else busy = UnitCastingInfo("player") ~= nil or UnitChannelInfo("player") ~= nil end
         if busy then
             WoWHACv5.pixel:SetColor(0, 0, 0)
+            if WoWHACv5.ClearRecommendationProvider then WoWHACv5:ClearRecommendationProvider() end
             return
         end
         if paired then currentId, curr = WoWHACv5:GetCurrentSuggestion() end
@@ -137,17 +139,23 @@ function WoWHACv5:UpdatePixel()
         end
         if casting or (not modernCastState and IsChanneling(300)) or (version < 120000 and version ~= 20505) and ((currentId ~= nil and currentId > 0 and not CanCast(currentId, "target", 300))) then
             WoWHACv5.pixel:SetColor(0, 0, 0)
+            if WoWHACv5.ClearRecommendationProvider then WoWHACv5:ClearRecommendationProvider() end
             return
         end
     end
 
-    if not paired then curr = WoWHACv5:GetCurrentHotKey() end
+    if not paired then
+        curr = WoWHACv5:GetCurrentHotKey()
+        if modern and isForever then currentId = WoWHACv5:GetCurrentId() end
+    end
     if curr == nil then
         if modern then WoWHACv5.pixel:SetColor(0, 0, 0) end
+        if WoWHACv5.ClearRecommendationProvider then WoWHACv5:ClearRecommendationProvider() end
         return
     end
     local rgb = WoWHACv5.Steganography(curr)
     WoWHACv5.pixel:SetColor(rgb.red, rgb.green, rgb.blue)
+    if WoWHACv5.UpdateRecommendationProvider then WoWHACv5:UpdateRecommendationProvider(currentId, curr) end
 end
 
 WoWHACv5:ScheduleRepeatingTimer("UpdatePixel", 0.1)

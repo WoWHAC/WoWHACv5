@@ -77,6 +77,74 @@ local function MainPage()
     return page
 end
 
+local function VisitSlots(visit)
+    local mainPage = MainPage()
+    if mainPage then
+        for button = 1, 12 do
+            local frame = _G["ActionButton" .. button]
+            local slot = frame and ActionID(Call(frame.CalculateAction, frame)) or (mainPage - 1) * 12 + button
+            visit(slot, "ACTIONBUTTON" .. button, "ActionButton" .. button)
+        end
+    end
+    for _, bar in ipairs(BARS) do
+        for button = 1, 12 do visit(bar.first + button - 1, bar.command .. button, bar.frame .. button) end
+    end
+end
+
+local displayBindings
+
+local function DisplayKey(hotkey)
+    if not ValidBinding(hotkey) then return nil end
+    local action, modifiers = addon.Binding.Parse(hotkey)
+    return action .. ":" .. modifiers
+end
+
+local function DisplayIcon(kind, id, slot)
+    local icon = Call(ActionBarAPI("GetActionTexture", GetActionTexture), slot)
+    if not icon then
+        local _, actionIcon = Call(addon.GetPriorityActionInfo, addon, kind, id)
+        icon = actionIcon
+    end
+    if Public(icon) and (type(icon) == "number" and icon > 0 or type(icon) == "string" and icon ~= "") then
+        return icon
+    end
+end
+
+function Bindings.InvalidateDisplayBindings()
+    displayBindings = nil
+end
+
+function Bindings.RefreshDisplayBindings()
+    -- Only public action-bar configuration is cached, never a recommendation or
+    -- a protected result. Changes in combat leave the snapshot unavailable.
+    displayBindings = nil
+    if InCombatLockdown and InCombatLockdown() then return false end
+    local result = {}
+    VisitSlots(function(slot, command, frameName)
+        local kind, id = SlotAction(slot)
+        if not kind or not id then return end
+        local entry = { kind = kind, id = id, icon = DisplayIcon(kind, id, slot) }
+        local function Remember(hotkey)
+            local key = DisplayKey(hotkey)
+            if key and not result[key] then result[key] = entry end
+        end
+        local first, second = Call(GetBindingKey, command)
+        Remember(first)
+        Remember(second)
+        first, second = Call(GetBindingKey, "CLICK " .. frameName .. ":LeftButton")
+        Remember(first)
+        Remember(second)
+    end)
+    displayBindings = result
+    return true
+end
+
+function Bindings.GetActionForHotkey(hotkey)
+    if not displayBindings then return nil end
+    local key = DisplayKey(hotkey)
+    return key and displayBindings[key] or nil
+end
+
 function Bindings.Build(entries)
     -- Public configuration is read only outside combat. A binding/bar change
     -- invalidates every old layer before this snapshot can be used again.
@@ -105,17 +173,7 @@ function Bindings.Build(entries)
         local kind, id = SlotAction(slot)
         Remember(kind, id, key, slot)
     end
-    local mainPage = MainPage()
-    if mainPage then
-        for button = 1, 12 do
-            local frame = _G["ActionButton" .. button]
-            local slot = frame and ActionID(Call(frame.CalculateAction, frame)) or (mainPage - 1) * 12 + button
-            Scan(slot, "ACTIONBUTTON" .. button, "ActionButton" .. button)
-        end
-    end
-    for _, bar in ipairs(BARS) do
-        for button = 1, 12 do Scan(bar.first + button - 1, bar.command .. button, bar.frame .. button) end
-    end
+    VisitSlots(Scan)
     for key, entry in pairs(configured) do
         if not result[key] then
             local name = addon:GetPriorityActionInfo(entry.kind, entry.id)

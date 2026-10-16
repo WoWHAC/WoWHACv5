@@ -58,6 +58,14 @@ manual changes update open menus, labels, condition arguments, and help without
 discarding unfinished input. Settings remain available when no provider is loaded
 and defer opening until combat ends.
 
+**Show recommendation icon** in Settings toggles a single action icon with its
+hotkey, enabled by default. Hold **Shift** and drag it to move; its position and
+visibility are saved. It displays the eligible priority action above the selected
+provider's suggestion, using the same native alpha gates as the priority pixels.
+When no action is recommended it is empty; holding Shift reveals a placement
+preview. This display is available on the same Midnight/Forever clients as the
+other new controls.
+
 Choose **Priority actions...** for any provider. Drag spells from the spellbook
 or items from bags into the shared action area. Priority runs left to right,
 then down; a translucent preview marks insertion while dragging. Existing

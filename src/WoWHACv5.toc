@@ -22,6 +22,7 @@ Utils\PriorityBindings.lua
 Utils\CombatEnemies.lua
 Utils\PriorityConditions.lua
 Frames\PixelFrame.lua
+Frames\RecommendationIcon.lua
 Utils\PriorityOverlays.lua
 Frames\ToggleBurstFrame.lua
 Frames\ToggleHekiliFrame.lua

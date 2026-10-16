@@ -13,6 +13,9 @@ end
 -- English source strings are also the fallback. Locale affects presentation
 -- only: provider IDs, condition keys, profiles and spell/item IDs stay stable.
 local russian = {
+    ["Show recommendation icon"] = "Показывать рекомендуемое действие",
+    ["Recommended action"] = "Рекомендуемое действие",
+    ["Hold Shift to drag."] = "Удерживайте Shift, чтобы переместить.",
     ["None available"] = "Нет доступных",
     ["No provider selected"] = "Провайдер не выбран",
     ["Provider: %s"] = "Провайдер: %s",

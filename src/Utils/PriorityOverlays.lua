@@ -87,6 +87,9 @@ function addon:RefreshPriorityActions()
             -- a long condition chain cannot overtake a higher-priority action.
             for _, gate in ipairs(layer.gates) do gate:SetFrameLevel(level) end
             layer.root:SetAlpha(0)
+            if self.AttachPriorityRecommendation then
+                self:AttachPriorityRecommendation(layer, #profile.actions - index + 1)
+            end
             nextActive[#nextActive + 1] = layer
         end
     end
