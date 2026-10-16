@@ -16,7 +16,8 @@ jobs:
       - name: Set up tag
         id: tag
         run: |
-          TAG="v$(date +'%Y.%m.%d-%H%M%S')"
+          VERSION="$(python3 scripts/sync_version.py)"
+          TAG="v$VERSION"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           git tag "$TAG"
           git push origin "$TAG"

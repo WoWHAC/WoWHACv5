@@ -2,6 +2,13 @@
 Addon for World of Warcraft that encrypts the recommended ability to click into a pixel for further reading by external software
 https://wowhac.fun/
 
+## Versioning
+
+`VERSION` is the source of the addon's SemVer version. After changing it, run
+`python scripts/sync_version.py` to regenerate the TOC version, or use `--check`
+to verify that they agree. Release builds run the same generator and tag the
+release as `v<VERSION>`.
+
 ## Provider selection and priority actions
 
 These controls are available only on **Retail Midnight or later** (mainline
