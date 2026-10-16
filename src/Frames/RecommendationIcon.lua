@@ -58,7 +58,6 @@ local function SetTile(tile, icon, hotkey)
     if width > SIZE - 6 then
         tile.key:SetFont(STANDARD_TEXT_FONT, math.max(8, 13 * (SIZE - 6) / width), "OUTLINE")
     end
-    tile.keyBackground:SetShown(key ~= "")
 end
 
 local function CreateTile(parent, level)
@@ -76,11 +75,6 @@ local function CreateTile(parent, level)
     tile.icon:SetPoint("TOPLEFT", 2, -2)
     tile.icon:SetPoint("BOTTOMRIGHT", -2, 2)
     tile.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    tile.keyBackground = tile:CreateTexture(nil, "OVERLAY", nil, 0)
-    tile.keyBackground:SetPoint("TOPLEFT", 2, -2)
-    tile.keyBackground:SetPoint("TOPRIGHT", -2, -2)
-    tile.keyBackground:SetHeight(16)
-    tile.keyBackground:SetColorTexture(0, 0, 0, 0.7)
     tile.key = tile:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
     tile.key:SetPoint("TOPRIGHT", -4, -3)
     tile.key:SetWidth(SIZE - 8)
