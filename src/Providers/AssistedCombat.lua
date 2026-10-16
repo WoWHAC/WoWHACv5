@@ -2,6 +2,8 @@ local _, WoWHACv5 = ...
 
 WoWHACv5.providers = WoWHACv5.providers or {}
 WoWHACv5.providers["AssistedCombat"] = function()
+    if not C_AssistedCombat or type(C_AssistedCombat.IsAvailable) ~= "function"
+        or type(C_AssistedCombat.GetNextCastSpell) ~= "function" then return false end
     WoWHACv5:Log("Supplier found: AssistedCombat.")
 
     local BarAddonLoaded = false

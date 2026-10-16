@@ -1,7 +1,9 @@
 local _, WoWHACv5 = ...
 
 WoWHACv5.providers = WoWHACv5.providers or {}
-WoWHACv5.providers["Ovale"] = function()
+WoWHACv5.providers["Ovale"] = function(session)
+    local hooks = session or WoWHACv5
+    if not Ovale or not Ovale.frame or type(GetItemSpell) ~= "function" then return false end
     WoWHACv5:Log("Supplier found: Ovale.")
     local KEY_REPLACEMENTS = {
         ["ALT%-"] = "A",
@@ -14,7 +16,11 @@ WoWHACv5.providers["Ovale"] = function()
         ["DIVIDE"] = "/",
     }
     -- Переопределяем shortcut-резолвер для Ovale
-    function Ovale:ChercherShortcut(slot)
+    local previousShortcut = Ovale.ChercherShortcut
+    local function FindShortcut(_, slot)
+        if session and not session.active then
+            return previousShortcut and previousShortcut(Ovale, slot)
+        end
         local name
         if slot > 12 and Bartender4 then
             name = "CLICK BT4Button" .. slot .. ":LeftButton"
@@ -41,8 +47,15 @@ WoWHACv5.providers["Ovale"] = function()
         end
         return key
     end
+    Ovale.ChercherShortcut = FindShortcut
+    if session then
+        session:AddCleanup(function()
+            if Ovale.ChercherShortcut == FindShortcut then Ovale.ChercherShortcut = previousShortcut end
+        end)
+    end
 
     WoWHACv5.ToggleBurstFrame:Show()
+    if session then session:AddCleanup(function() WoWHACv5.ToggleBurstFrame:Hide() end) end
 
     local function GetSpellIdByName(name)
         return name and Ovale:GetSpellIdByName(name) or nil
@@ -51,12 +64,19 @@ WoWHACv5.providers["Ovale"] = function()
     -- Кэш для ItemName -> ItemID
     local itemCache = {}
     local _GetItemSpell = GetItemSpell
-    function GetItemSpell(id, ...)
-        local name = _GetItemSpell(id, ...)
+    local function TrackItemSpell(id, ...)
+        if session and not session.active then return _GetItemSpell(id, ...) end
+        local name, spellId = _GetItemSpell(id, ...)
         if name then
             itemCache[name] = id
         end
-        return name
+        return name, spellId
+    end
+    GetItemSpell = TrackItemSpell
+    if session then
+        session:AddCleanup(function()
+            if GetItemSpell == TrackItemSpell then GetItemSpell = _GetItemSpell end
+        end)
     end
 
     local function GetItemIdByName(name)
@@ -93,7 +113,7 @@ WoWHACv5.providers["Ovale"] = function()
     end
 
     -- Хук обновления кадров Ovale
-    WoWHACv5:SecureHook(Ovale.frame, "OnUpdate", function(frame)
+    hooks:SecureHook(Ovale.frame, "OnUpdate", function(frame)
         local actions = frame.actions
         local spell
         local order = { 4, 3, (WoWHACv5.burst and 2 or 6), 1 }

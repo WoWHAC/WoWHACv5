@@ -490,26 +490,34 @@ local function GetCurrentSuggestion()
     return cachedId, cachedHotkey
 end
 
-local function StartKeybindTracking()
-    keybindEventFrame = CreateFrame("Frame")
+local function StartKeybindTracking(session)
+    keybindEventFrame = keybindEventFrame or CreateFrame("Frame")
     for _, event in ipairs(KEYBIND_EVENTS) do
         keybindEventFrame:RegisterEvent(event)
     end
-    keybindEventFrame:SetScript("OnEvent", function()
+    local onEvent = function()
         slotKeysDirty = true
         cachedAt = nil
-    end)
+    end
+    keybindEventFrame:SetScript("OnEvent", session and session:Guard(onEvent) or onEvent)
+    if session then
+        session:AddCleanup(function()
+            keybindEventFrame:UnregisterAllEvents()
+            keybindEventFrame:SetScript("OnEvent", nil)
+        end)
+    end
 end
 
 WoWHACv5.providers = WoWHACv5.providers or {}
-WoWHACv5.providers[ADDON_NAME] = function()
-    if providerInitialized then
-        return
+WoWHACv5.providers[ADDON_NAME] = function(session)
+    if not WoWHACv5:SupportsModernFeatures() then
+        if providerInitialized then return end
+        providerInitialized = true
     end
-    providerInitialized = true
+    slotKeysDirty, cachedAt, betterAssistantCore = true, nil, nil
 
     WoWHACv5:Log("Supplier found: BetterAssistant.")
-    StartKeybindTracking()
+    StartKeybindTracking(session)
 
     function WoWHACv5:GetCurrentHotKey()
         local _, hotkey = GetCurrentSuggestion()

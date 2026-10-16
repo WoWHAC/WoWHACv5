@@ -51,13 +51,13 @@ function WoWHACv5.ToggleHekiliFrame:Init()
     self:AddButton("interrupts", "I", "Toggle Interrupts")
     self:AddButton("defensives", "D", "Toggle Defensives")
     self:AddButton("potions", "P", "Toggle Potions")
-    self:AddButton("custom1", "1", "Toggle " .. Hekili.DB.profile.toggles.custom1.name)
-    self:AddButton("custom2", "2", "Toggle " ..  Hekili.DB.profile.toggles.custom2.name)
+    self:AddButton("custom1", "1", "Toggle %s", Hekili.DB.profile.toggles.custom1.name)
+    self:AddButton("custom2", "2", "Toggle %s", Hekili.DB.profile.toggles.custom2.name)
 end
 
 local index = 0;
 -- Add a button
-function WoWHACv5.ToggleHekiliFrame:AddButton (Toggle, Text, Tooltip)
+function WoWHACv5.ToggleHekiliFrame:AddButton (Toggle, Text, TooltipName, TooltipArgument)
     local ButtonFrame = CreateFrame("Button", "$parentButton" .. tostring(Toggle), self)
     local constIndex = index + 1;
     index = constIndex
@@ -66,14 +66,15 @@ function WoWHACv5.ToggleHekiliFrame:AddButton (Toggle, Text, Tooltip)
     ButtonFrame:SetPoint("LEFT", self, "LEFT", 20 * (constIndex - 1) + constIndex, 0)
 
     -- Button Tooltip (Optional)
-    if Tooltip then
+    if TooltipName then
         ButtonFrame:SetScript("OnEnter",
                 function()
                     Mixin(GameTooltip, BackdropTemplateMixin)
                     GameTooltip:SetOwner(WoWHACv5.ToggleHekiliFrame, "ANCHOR_BOTTOM", 0, 0)
                     GameTooltip:ClearLines()
                     GameTooltip:SetBackdropColor(0, 0, 0, 1)
-                    GameTooltip:SetText(Tooltip, nil, nil, nil, 1, true)
+                    local tooltip = TooltipArgument and WoWHACv5:Translate(TooltipName, TooltipArgument) or WoWHACv5:Translate(TooltipName)
+                    GameTooltip:SetText(tooltip, nil, nil, nil, 1, true)
                     GameTooltip:Show()
                 end
         )

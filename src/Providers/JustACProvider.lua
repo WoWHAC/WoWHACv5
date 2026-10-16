@@ -5,15 +5,18 @@ local CVAR_CHECK_INTERVAL = 1
 
 WoWHACv5.providers = WoWHACv5.providers or {}
 WoWHACv5.providers["JustAC"] = function()
+    local modern = WoWHACv5:SupportsModernFeatures()
     WoWHACv5:Log("Supplier found: JustAC.")
 
     local JustACAddon = LibStub("AceAddon-3.0"):GetAddon("JustAssistedCombat", true)
     local SpellQueue = LibStub("JustAC-SpellQueue", true)
     local ActionBarScanner = LibStub("JustAC-ActionBarScanner", true)
     local BlizzardAPI = LibStub("JustAC-BlizzardAPI", true)
+    local DefensiveEngine = modern and LibStub("JustAC-DefensiveEngine", true)
+    local MaintenanceTracker = modern and LibStub("JustAC-MaintenanceTracker", true)
 
     if not JustACAddon or not SpellQueue or not SpellQueue.GetCurrentSpellQueue then
-        return
+        return false
     end
 
     local nextCVarCheck = 0
@@ -26,8 +29,8 @@ WoWHACv5.providers["JustAC"] = function()
         -- Newer JustAC editions expose the actual binding behind abbreviated
         -- labels (such as Spc or SL). Older editions keep their existing labels.
         if IsHotkeyAvailable(hotkey) and ActionBarScanner and ActionBarScanner.GetNormalizedHotkey then
-            local normalized = ActionBarScanner.GetNormalizedHotkey(hotkey)
-            if IsHotkeyAvailable(normalized) then
+            local ok, normalized = pcall(ActionBarScanner.GetNormalizedHotkey, hotkey)
+            if ok and IsHotkeyAvailable(normalized) then
                 return normalized
             end
         end
@@ -89,10 +92,12 @@ WoWHACv5.providers["JustAC"] = function()
         if ActionBarScanner then
             if isItem and ActionBarScanner.GetItemHotkey then
                 scannerAvailable = true
-                hotkey = ActionBarScanner.GetItemHotkey(id, itemCastSpellID)
+                local ok, value = pcall(ActionBarScanner.GetItemHotkey, id, itemCastSpellID)
+                if ok then hotkey = value end
             elseif not isItem and ActionBarScanner.GetSpellHotkey then
                 scannerAvailable = true
-                hotkey = ActionBarScanner.GetSpellHotkey(id)
+                local ok, value = pcall(ActionBarScanner.GetSpellHotkey, id)
+                if ok then hotkey = value end
             end
         end
 
@@ -123,8 +128,8 @@ WoWHACv5.providers["JustAC"] = function()
             return false
         end
 
-        local ok, isReady = pcall(BlizzardAPI.IsSpellReady, spellId)
-        return ok and isReady == true
+        local ok, isReady = pcall(function() return BlizzardAPI.IsSpellReady(spellId) == true end)
+        return ok and isReady
     end
 
     local function GetInterruptSuggestion()
@@ -157,6 +162,32 @@ WoWHACv5.providers["JustAC"] = function()
                 end
             end
         end
+    end
+
+    local function GetEmergencyHealSuggestion()
+        if not DefensiveEngine or not DefensiveEngine.GetEmergencyHealID then return nil end
+        local ok, id = pcall(DefensiveEngine.GetEmergencyHealID, JustACAddon)
+        if not ok or type(id) ~= "number" or id <= 0 then return nil end
+        return GetIconSuggestion(nil, id, false)
+    end
+
+    local function GetMaintenanceSuggestion()
+        if not MaintenanceTracker or not MaintenanceTracker.GetState then return nil end
+        local ok, id = pcall(function()
+            if not UnitAffectingCombat or not UnitAffectingCombat("player") then return nil end
+            local profile = JustACAddon.GetProfile and JustACAddon:GetProfile()
+            if profile and profile.showMaintenanceSlot == false then return nil end
+            local state, entry = MaintenanceTracker.GetState()
+            if (state ~= "down" and state ~= "refresh") or type(entry) ~= "table" then return nil end
+            local spellId = entry.cast
+            if type(spellId) ~= "number" or spellId <= 0 or not IsSpellReady(spellId) then return nil end
+            local usable = BlizzardAPI and BlizzardAPI.IsSpellUsable
+                or (C_Spell and C_Spell.IsSpellUsable) or IsUsableSpell
+            if not usable or usable(spellId, false) ~= true then return nil end
+            return spellId
+        end)
+        if not ok or not id then return nil end
+        return GetIconSuggestion(nil, id, false)
     end
 
     local function GetRotationSuggestion()
@@ -214,15 +245,31 @@ WoWHACv5.providers["JustAC"] = function()
             return id, hotkey
         end
 
+        if modern then
+            id, hotkey = GetEmergencyHealSuggestion()
+            if hotkey then return id, hotkey end
+        end
+
         id, hotkey = GetDefensiveSuggestion()
         if hotkey then
             return id, hotkey
+        end
+
+        if modern then
+            id, hotkey = GetMaintenanceSuggestion()
+            if hotkey then return id, hotkey end
         end
 
         return GetRotationSuggestion()
     end
 
     EnsureLowHealthWarningEnabled(true)
+
+    if modern then
+        function WoWHACv5:GetCurrentSuggestion()
+            return GetCurrentSuggestion()
+        end
+    end
 
     function WoWHACv5:GetCurrentHotKey()
         local _, hotkey = GetCurrentSuggestion()

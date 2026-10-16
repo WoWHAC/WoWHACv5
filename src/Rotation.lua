@@ -106,28 +106,44 @@ function WoWHACv5:OnSpellcast(event, unit, _, _, spellId)
 end
 
 local version = select(4, GetBuildInfo())
+local modern = WoWHACv5:SupportsModernFeatures()
 -- Match JustAC's client identity check; the interface number is not a game type.
 local isForever = WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
 
 function WoWHACv5:UpdatePixel()
+    if modern and WoWHACv5.UpdatePriorityActions then WoWHACv5:UpdatePriorityActions() end
+    local currentId, curr
+    local paired = modern and type(WoWHACv5.GetCurrentSuggestion) == "function"
     if isForever then
         -- JustAC holds its queue while channeling. Check only the presence of
         -- the player's cast/channel, without legacy castability or timestamps.
-        if UnitCastingInfo("player") ~= nil or UnitChannelInfo("player") ~= nil then
+        local busy
+        if WoWHACv5.IsPriorityPlayerIdle then busy = not WoWHACv5:IsPriorityPlayerIdle()
+        else busy = UnitCastingInfo("player") ~= nil or UnitChannelInfo("player") ~= nil end
+        if busy then
             WoWHACv5.pixel:SetColor(0, 0, 0)
             return
         end
+        if paired then currentId, curr = WoWHACv5:GetCurrentSuggestion() end
     else
-        local casting = UnitCastingInfo("player") ~= nil
-        local currentId = WoWHACv5:GetCurrentId()
-        if casting or IsChanneling(300) or (version < 120000 and version ~= 20505) and ((currentId ~= nil and currentId > 0 and not CanCast(currentId, "target", 300))) then
+        local modernCastState = modern and version >= 120000 and WoWHACv5.IsPriorityPlayerIdle
+        local casting
+        if modernCastState then casting = not WoWHACv5:IsPriorityPlayerIdle()
+        else casting = UnitCastingInfo("player") ~= nil end
+        if paired then
+            currentId, curr = WoWHACv5:GetCurrentSuggestion()
+        else
+            currentId = WoWHACv5:GetCurrentId()
+        end
+        if casting or (not modernCastState and IsChanneling(300)) or (version < 120000 and version ~= 20505) and ((currentId ~= nil and currentId > 0 and not CanCast(currentId, "target", 300))) then
             WoWHACv5.pixel:SetColor(0, 0, 0)
             return
         end
     end
 
-    local curr = WoWHACv5:GetCurrentHotKey()
+    if not paired then curr = WoWHACv5:GetCurrentHotKey() end
     if curr == nil then
+        if modern then WoWHACv5.pixel:SetColor(0, 0, 0) end
         return
     end
     local rgb = WoWHACv5.Steganography(curr)

@@ -58,10 +58,40 @@ function WoWHACv5:NoChanges()
     hasChanges = false
 end
 
-WoWHACv5.Provider = function()
-    if not C_AssistedCombat then
-        WoWHACv5:Log("No rotation suppliers found. A list of available suppliers can be found at https://wowhac.fun/")
-    else
-        WoWHACv5.providers["AssistedCombat"]()
+if not WoWHACv5:SupportsModernFeatures() then
+    WoWHACv5.Provider = function()
+        if not C_AssistedCombat then
+            WoWHACv5:Log("No rotation suppliers found. A list of available suppliers can be found at https://wowhac.fun/")
+        else
+            WoWHACv5.providers["AssistedCombat"]()
+        end
     end
+    return
+end
+
+local baseGetters = {
+    GetCurrentHotKey = WoWHACv5.GetCurrentHotKey,
+    GetCurrentId = WoWHACv5.GetCurrentId,
+    GetNextHotKey = WoWHACv5.GetNextHotKey,
+    GetNextId = WoWHACv5.GetNextId,
+}
+
+function WoWHACv5:ClearProviderOutput()
+    currentId, currentHotkey, nextId, nextHotkey = 0, nil, nil, nil
+    hasChanges = false
+    if self.pixel then
+        self.pixel:SetColor(0, 0, 0)
+    end
+end
+
+function WoWHACv5:ResetProviderState()
+    for name, getter in pairs(baseGetters) do
+        self[name] = getter
+    end
+    self.GetCurrentSuggestion = nil
+    self:ClearProviderOutput()
+end
+
+WoWHACv5.Provider = function()
+    return WoWHACv5:RefreshProviders()
 end

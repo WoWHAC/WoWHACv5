@@ -17,23 +17,22 @@ local function NormalizeHotkey(hotkey)
 end
 
 WoWHACv5.providers = WoWHACv5.providers or {}
-WoWHACv5.providers[ADDON_NAME] = function()
+WoWHACv5.providers[ADDON_NAME] = function(session)
+    local hooks = session or WoWHACv5
     local rotation = AethysRotation
     local core = AethysCore
     if not rotation or not core or type(core.FindKeyBinding) ~= "function"
             or not C_Timer or type(C_Timer.After) ~= "function" then
-        return
+        return false
     end
 
     for _, method in ipairs(REQUIRED_ROTATION_METHODS) do
         if type(rotation[method]) ~= "function" then
-            return
+            return false
         end
     end
 
-    if WoWHACv5:IsHooked(rotation, "ResetIcons") then
-        return
-    end
+    if not WoWHACv5:SupportsModernFeatures() and WoWHACv5:IsHooked(rotation, "ResetIcons") then return end
 
     WoWHACv5:Log("Supplier found: AethysRotation.")
 
@@ -81,19 +80,20 @@ WoWHACv5.providers[ADDON_NAME] = function()
         WoWHACv5:SetNextHotKey(nextAction and nextAction.hotkey or nil)
     end
 
-    WoWHACv5:SecureHook(rotation, "ResetIcons", function()
+    hooks:SecureHook(rotation, "ResetIcons", function()
         generation = generation + 1
         local currentGeneration = generation
         state = { offGCD = {} }
 
-        C_Timer.After(0, function()
+        local publish = function()
             if generation == currentGeneration then
                 PublishRecommendations()
             end
-        end)
+        end
+        if session then session:After(0, publish) else C_Timer.After(0, publish) end
     end)
 
-    WoWHACv5:SecureHook(rotation, "Cast", function(action, offGCD)
+    hooks:SecureHook(rotation, "Cast", function(action, offGCD)
         if offGCD then
             if #state.offGCD < 2 then
                 state.offGCD[#state.offGCD + 1] = ResolveAction(action)
@@ -104,12 +104,12 @@ WoWHACv5.providers[ADDON_NAME] = function()
         end
     end)
 
-    WoWHACv5:SecureHook(rotation, "CastQueue", function(current, nextAction)
+    hooks:SecureHook(rotation, "CastQueue", function(current, nextAction)
         state.main = ResolveAction(current)
         state.next = ResolveAction(nextAction)
     end)
 
-    WoWHACv5:SecureHook(rotation, "CastSuggested", function(action)
+    hooks:SecureHook(rotation, "CastSuggested", function(action)
         state.suggested = state.suggested or ResolveAction(action)
     end)
 end

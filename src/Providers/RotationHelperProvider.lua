@@ -7,7 +7,7 @@ WoWHACv5.providers["RotationHelper"] = function()
     local RH = RotationHelper
     local SpellSuggestion = RH and RH.modules and RH.modules.SpellSuggestion
     if not SpellSuggestion then
-        return
+        return false
     end
 
     local function GetSynapticHotKey()

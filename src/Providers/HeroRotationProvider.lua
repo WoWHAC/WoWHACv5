@@ -1,13 +1,13 @@
 local _, WoWHACv5 = ...
 
 WoWHACv5.providers = WoWHACv5.providers or {}
-WoWHACv5.providers["HeroRotation"] = function()
+WoWHACv5.providers["HeroRotation"] = function(session)
+    local hooks = session or WoWHACv5
+    if not HeroRotation or not HeroRotation.MainIconFrame or not HeroRotation.MainIconFrame.Keybind then return false end
     WoWHACv5:Log("Supplier found: HeroRotation.")
 
     local Keybind = HeroRotation.MainIconFrame.Keybind
-    local last = Keybind:GetText()
-
-    WoWHACv5:SecureHook(Keybind, "SetText", function(_, txt)
+    local function UpdateRecommendation(_, txt)
         -- Правый рекомендуемый
         local rightSuggest = HeroRotation.RightSuggestedIconFrame and HeroRotation.RightSuggestedIconFrame.Keybind
         if rightSuggest and rightSuggest:IsVisible() then
@@ -41,8 +41,8 @@ WoWHACv5.providers["HeroRotation"] = function()
             end
         end
 
-        if txt ~= last then
-            WoWHACv5:SetCurrentHotKey(txt)
-        end
-    end)
+        WoWHACv5:SetCurrentHotKey(txt)
+    end
+    if WoWHACv5:SupportsModernFeatures() then UpdateRecommendation(Keybind, Keybind:GetText()) end
+    hooks:SecureHook(Keybind, "SetText", UpdateRecommendation)
 end
