@@ -33,7 +33,7 @@ jobs:
             unzip -q "$f" -d "$workdir"
             mkdir -p "$workdir/WoWHACv5"
             cp -r src/* "$workdir/WoWHACv5/"
-            if [ "$name" = "16001JustAC.zip" ]; then
+            if [ "$name" = "16001JustAC.zip" ] || [ "$name" = "16001Hekili.zip" ]; then
               sed -i -E '/^## Interface:/ { /(^|[[:space:],])16001([[:space:],]|$)/! s/[[:space:]]*$/, 16001/; }' "$workdir/WoWHACv5/WoWHACv5.toc"
             fi
             (cd "$workdir" && zip -qr "$OUTDIR/$name" . -x '*/tests/*')

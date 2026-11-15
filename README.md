@@ -144,16 +144,24 @@ JustAC's interrupt, low-health defense, then rotation sequence.
 
 ## WoW Forever
 
-World of Warcraft Forever beta (Interface `16001`) is supported by the separate
-`16001JustAC.zip` release package, which includes JustAC `5.9.0-beta2`. The existing
-`1200JustAC.zip` package remains available for Retail.
+World of Warcraft Forever beta (Interface `16001`) has separate release packages:
 
-To install on Forever, extract the `JustAC` and `WoWHACv5` folders from
-`16001JustAC.zip` into the client's `Interface/AddOns` directory, then enable both
-addons. Use the release archive: `prebuilds/16001JustAC.zip` is a packaging template
-and does not contain the current WoWHACv5 source until the release build runs.
+- `16001Hekili.zip` includes Hekili Forever `v0.8.2`, its shared content, and all
+  nine class modules. The supplied beta has no default Warlock priority.
+- `16001JustAC.zip` includes JustAC `5.9.0-beta2`.
+
+To install on Forever, extract all addon folders from the chosen release archive
+into the client's `Interface/AddOns` directory and enable WoWHACv5 and the chosen
+rotation addon. For Hekili, keep `Hekili_Shared` and the `Hekili_<Class>` folders
+installed and enabled; Hekili loads the relevant content on demand. Select the
+provider through the WoWHACv5 minimap menu or `/wowhac`.
+
+Use the release archives: `prebuilds/16001Hekili.zip` and
+`prebuilds/16001JustAC.zip` are packaging templates and do not contain the current
+WoWHACv5 source until the release build runs. Existing Retail packages remain
+available unchanged.
 
 The release workflow overlays `src` onto each packaging template. For the Forever
-package only, it appends `16001` to the packaged WoWHACv5 TOC's Interface list
+packages only, it appends `16001` to the packaged WoWHACv5 TOC's Interface list
 (`120000, 16001` with the current source); the shared
 source TOC and all existing package templates retain their current interfaces.
