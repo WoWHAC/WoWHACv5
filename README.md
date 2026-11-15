@@ -9,32 +9,6 @@ https://wowhac.fun/
 to verify that they agree. Release builds run the same generator and tag the
 release as `v<VERSION>`.
 
-## Standalone PriorityAssistant packages
-
-Release builds also create standalone **PriorityAssistant** archives, one per
-game version represented by the existing packaging templates. Each archive
-contains only `PriorityAssistant/`, including its embedded libraries. Rotation
-providers such as JustAC, Hekili, and MaxDps are installed separately; their
-integration adapters remain available in the addon.
-
-Build the standalone archives locally with:
-
-```sh
-python scripts/package_priority_assistant.py --output dist/priorityassistant
-```
-
-Archive suffixes match the existing client codes: `1200` for Midnight and
-`16001` for Forever, for example. The full Interface mapping lives in
-[`scripts/priority_assistant_targets.json`](scripts/priority_assistant_targets.json);
-the build checks that every prebuild client has a standalone target.
-
-The package version comes from `VERSION`. Each archive has the correct client
-Interface value, a `PriorityAssistant.toc`, independent `PriorityAssistantDB`
-settings, and PriorityAssistant branding, including `/priorityassistant` on
-clients with the new controls. The source addon and existing bundled archives
-remain unchanged. The new priority UI still requires Retail Midnight or later,
-or WoW Forever; older clients retain their existing provider behavior.
-
 ## Provider selection and priority actions
 
 These controls are available only on **Retail Midnight or later** (mainline

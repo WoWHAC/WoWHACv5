@@ -39,7 +39,6 @@ jobs:
             (cd "$workdir" && zip -qr "$OUTDIR/$name" . -x '*/tests/*')
             rm -rf "$workdir"
           done
-          python3 scripts/package_priority_assistant.py --output "$OUTDIR"
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
