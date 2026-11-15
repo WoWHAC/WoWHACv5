@@ -47,7 +47,9 @@ function WoWHACv5.ToggleHekiliFrame:Init()
     -- Button Creation
     self.Button = {}
     self:AddButton("cooldowns", "C", "Toggle Major Cooldowns")
-    self:AddButton("essences", "E", "Toggle Minor Cooldowns")
+    local toggles = Hekili.DB.profile.toggles
+    local minorCooldowns = toggles.minor_cooldowns and "minor_cooldowns" or "essences"
+    self:AddButton(minorCooldowns, "E", "Toggle Minor Cooldowns")
     self:AddButton("interrupts", "I", "Toggle Interrupts")
     self:AddButton("defensives", "D", "Toggle Defensives")
     self:AddButton("potions", "P", "Toggle Potions")
