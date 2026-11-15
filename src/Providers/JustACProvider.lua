@@ -12,8 +12,6 @@ WoWHACv5.providers["JustAC"] = function()
     local SpellQueue = LibStub("JustAC-SpellQueue", true)
     local ActionBarScanner = LibStub("JustAC-ActionBarScanner", true)
     local BlizzardAPI = LibStub("JustAC-BlizzardAPI", true)
-    local DefensiveEngine = modern and LibStub("JustAC-DefensiveEngine", true)
-    local MaintenanceTracker = modern and LibStub("JustAC-MaintenanceTracker", true)
 
     if not JustACAddon or not SpellQueue or not SpellQueue.GetCurrentSpellQueue then
         return false
@@ -164,32 +162,6 @@ WoWHACv5.providers["JustAC"] = function()
         end
     end
 
-    local function GetEmergencyHealSuggestion()
-        if not DefensiveEngine or not DefensiveEngine.GetEmergencyHealID then return nil end
-        local ok, id = pcall(DefensiveEngine.GetEmergencyHealID, JustACAddon)
-        if not ok or type(id) ~= "number" or id <= 0 then return nil end
-        return GetIconSuggestion(nil, id, false)
-    end
-
-    local function GetMaintenanceSuggestion()
-        if not MaintenanceTracker or not MaintenanceTracker.GetState then return nil end
-        local ok, id = pcall(function()
-            if not UnitAffectingCombat or not UnitAffectingCombat("player") then return nil end
-            local profile = JustACAddon.GetProfile and JustACAddon:GetProfile()
-            if profile and profile.showMaintenanceSlot == false then return nil end
-            local state, entry = MaintenanceTracker.GetState()
-            if (state ~= "down" and state ~= "refresh") or type(entry) ~= "table" then return nil end
-            local spellId = entry.cast
-            if type(spellId) ~= "number" or spellId <= 0 or not IsSpellReady(spellId) then return nil end
-            local usable = BlizzardAPI and BlizzardAPI.IsSpellUsable
-                or (C_Spell and C_Spell.IsSpellUsable) or IsUsableSpell
-            if not usable or usable(spellId, false) ~= true then return nil end
-            return spellId
-        end)
-        if not ok or not id then return nil end
-        return GetIconSuggestion(nil, id, false)
-    end
-
     local function GetRotationSuggestion()
         local queue = SpellQueue.GetCurrentSpellQueue()
         local id = queue and queue[1]
@@ -245,19 +217,9 @@ WoWHACv5.providers["JustAC"] = function()
             return id, hotkey
         end
 
-        if modern then
-            id, hotkey = GetEmergencyHealSuggestion()
-            if hotkey then return id, hotkey end
-        end
-
         id, hotkey = GetDefensiveSuggestion()
         if hotkey then
             return id, hotkey
-        end
-
-        if modern then
-            id, hotkey = GetMaintenanceSuggestion()
-            if hotkey then return id, hotkey end
         end
 
         return GetRotationSuggestion()

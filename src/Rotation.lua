@@ -128,9 +128,9 @@ function WoWHACv5:UpdatePixel()
         end
         if paired then currentId, curr = WoWHACv5:GetCurrentSuggestion() end
     else
-        local modernCastState = modern and version >= 120000 and WoWHACv5.IsPriorityPlayerIdle
+        local modernCastState = modern and version >= 120000 and WoWHACv5.IsProviderPlayerIdle
         local casting
-        if modernCastState then casting = not WoWHACv5:IsPriorityPlayerIdle()
+        if modernCastState then casting = not WoWHACv5:IsProviderPlayerIdle()
         else casting = UnitCastingInfo("player") ~= nil end
         if paired then
             currentId, curr = WoWHACv5:GetCurrentSuggestion()

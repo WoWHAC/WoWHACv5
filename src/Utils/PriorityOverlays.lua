@@ -13,22 +13,46 @@ local function HideAll()
     for _, layer in ipairs(active) do layer.root:SetAlpha(0) end
 end
 
-local function PlayerIdle()
+local function PlayerIdle(channelGraceMS)
     local public = addon.IsPriorityValuePublic
     if type(UnitCastingInfo) ~= "function" or type(UnitChannelInfo) ~= "function" then return false end
     for index, getter in ipairs({ UnitCastingInfo, UnitChannelInfo }) do
         local ok, info = pcall(function() return { getter("player") } end)
         if not ok then return false end
         local name, castBarID = info[1], info[index == 1 and 10 or 11]
+        local channelEnding = false
+        if index == 2 and channelGraceMS then
+            local endTimeMS = info[5]
+            local clockOK, now = pcall(GetTime)
+            if public(endTimeMS) and type(endTimeMS) == "number"
+                and endTimeMS == endTimeMS and math.abs(endTimeMS) < math.huge
+                and clockOK and public(now) and type(now) == "number"
+                and now == now and math.abs(now) < math.huge then
+                channelEnding = endTimeMS - now * 1000 < channelGraceMS
+            end
+        end
         -- castBarID is documented NeverSecret. On clients without that field,
         -- only an explicitly public name may establish the absence of a cast.
-        if public(castBarID) and castBarID ~= nil then return false end
-        if not public(name) or name ~= nil then return false end
+        if not channelEnding then
+            if public(castBarID) and castBarID ~= nil then return false end
+            if not public(name) or name ~= nil then return false end
+        end
     end
     return true
 end
 
 function addon:IsPriorityPlayerIdle() return PlayerIdle() end
+
+-- Keep the provider's original channel queue window separate from the strict
+-- idle requirement for configured priority actions and the Forever pipeline.
+function addon:IsProviderPlayerIdle() return PlayerIdle(300) end
+
+local function IsBindingCurrent(entry, binding)
+    local checker = addon.PriorityBindings and addon.PriorityBindings.IsCurrent
+    if not binding or type(checker) ~= "function" then return false end
+    local ok, current = pcall(checker, entry, binding)
+    return ok and current == true
+end
 
 local function CreateLayer(binding, gateCount)
     local pixel = addon.pixel
@@ -85,7 +109,9 @@ function addon:RefreshPriorityActions()
             for _, descriptor in ipairs(descriptors) do
                 if descriptor.type == "interrupt" then layer.interrupt = true; break end
             end
-            layer.bindingCurrent = binding ~= nil
+            -- A secure override can already redirect this key before any
+            -- binding-change event occurs. Validate the initial capture too.
+            layer.bindingCurrent = IsBindingCurrent(entry, binding)
             local baseLevel = self.pixel.frame:GetFrameLevel()
             local level = baseLevel + #profile.actions - index + 1
             layer.root:SetFrameLevel(level)
@@ -104,14 +130,9 @@ function addon:RefreshPriorityActions()
 end
 
 local function RecheckBindings(onlyInvalid)
-    local checker = addon.PriorityBindings and addon.PriorityBindings.IsCurrent
     for _, layer in ipairs(active) do
         if not onlyInvalid or not layer.bindingCurrent then
-            local ok, current = false, false
-            if layer.binding and type(checker) == "function" then
-                ok, current = pcall(checker, layer.entry, layer.binding)
-            end
-            layer.bindingCurrent = ok and current == true
+            layer.bindingCurrent = IsBindingCurrent(layer.entry, layer.binding)
             if not layer.bindingCurrent then layer.root:SetAlpha(0) end
         end
     end
@@ -145,6 +166,10 @@ function addon:UpdatePriorityActions()
     if bindingsDirty then
         if InCombat() then RecheckBindings(true)
         else self:RefreshPriorityActions() end
+    else
+        -- An initially overridden/unreadable mapping may become valid without
+        -- changing the saved base binding or rebuilding layers in combat.
+        RecheckBindings(true)
     end
     local evaluator = self.PriorityConditions
     local idle = PlayerIdle()
