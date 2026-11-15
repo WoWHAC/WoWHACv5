@@ -91,21 +91,30 @@ local function StopProvider()
     WoWHACv5:ResetProviderState()
 end
 
-local function FailProvider(session, message)
-    if activeSession ~= session then return end
-    StopProvider()
-    WoWHACv5:Log("Provider " .. session.id .. " stopped: " .. tostring(message))
-    WoWHACv5:SendMessage("WOWHAC_PROVIDER_CHANGED", nil)
-end
-
 function Session:Guard(callback)
+    local lastError
     return function(...)
         if not self.active or activeSession ~= self then return end
+        local generation = self.errorGeneration or 0
         local ok, first, second = pcall(callback, ...)
+        if not self.active or activeSession ~= self then return end
         if not ok then
-            FailProvider(self, first)
+            -- An upstream frame/API can be unavailable for one update. Clear
+            -- stale output, but keep this session's hooks for the next update.
+            self.errorGeneration = (self.errorGeneration or 0) + 1
+            WoWHACv5:ClearProviderOutput()
+            if WoWHACv5.ClearRecommendationProvider then WoWHACv5:ClearRecommendationProvider() end
+            local message = tostring(first)
+            if message ~= lastError then
+                WoWHACv5:Log("Provider " .. self.id .. " update failed: " .. message)
+            end
+            lastError = message
             return
         end
+        -- A nested getter may have failed while its caller returned normally.
+        -- Never publish a half-valid ID/key pair from that same update.
+        if (self.errorGeneration or 0) ~= generation then return end
+        lastError = nil
         return first, second
     end
 end
@@ -159,6 +168,12 @@ local function Activate(id)
             WoWHACv5[name] = session:Guard(WoWHACv5[name])
         end
     end
+    if type(WoWHACv5.GetCurrentSuggestion) ~= "function" then
+        function WoWHACv5:GetCurrentSuggestion()
+            return self:GetCurrentId(), self:GetCurrentHotKey()
+        end
+        WoWHACv5.GetCurrentSuggestion = session:Guard(WoWHACv5.GetCurrentSuggestion)
+    end
     activeProvider = id
     WoWHACv5:SendMessage("WOWHAC_PROVIDER_CHANGED", id)
     return true
@@ -197,7 +212,8 @@ function WoWHACv5:RefreshProviders()
     end
 
     local settings = self:GetSettings()
-    local preferred = present[settings.selectedProvider] and settings.selectedProvider or ids[1]
+    local selected = settings.selectedProvider
+    local preferred = present[selected] and selected or ids[1]
     if preferred == activeProvider and activeSession then return true end
     if type(InCombatLockdown) == "function" and InCombatLockdown() then
         -- Login during combat retries on PLAYER_REGEN_ENABLED. A provider that
@@ -216,13 +232,15 @@ function WoWHACv5:RefreshProviders()
     end
     for _, id in ipairs(attempts) do
         if Activate(id) then
-            settings.selectedProvider = id
+            -- An installed provider can be temporarily unready. Keep an
+            -- explicit choice so a later refresh retries it after the fallback.
+            if not present[selected] or id == selected then settings.selectedProvider = id end
             initialized = true
             return true
         end
     end
     Activate(nil)
-    settings.selectedProvider = nil
+    if not present[selected] then settings.selectedProvider = nil end
     if not initialized then
         self:Log("No rotation suppliers found. A list of available suppliers can be found at https://wowhac.fun/")
     end

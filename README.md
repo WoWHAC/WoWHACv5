@@ -24,6 +24,10 @@ plus **Assisted Combat (Blizzard)** when its native API is available. The choice
 persists across reloads. If it disappears, selection falls back to the first
 available provider in the `Providers` file order of `src/WoWHACv5.toc`.
 Providers can be switched outside combat. Drag the minimap icon to move it.
+If the selected addon is installed but temporarily unready, a fallback can run
+without replacing the saved choice; later refreshes retry that choice. A runtime
+update error clears the provider's output and retries on a fresh update, retaining
+its hooks and selection. ID/key pairs from failed updates remain unavailable.
 
 Open **Settings...** from the minimap menu to choose **Automatic**, **Русский**,
 or **English**. Automatic follows the WoW interface language: Russian for
@@ -110,6 +114,8 @@ through the same AND chain.
 
 Bindings come from standard action bars, recognized macros, and direct
 spell/item bindings. Full binding scans and layer changes happen outside combat.
+Captured keys are checked against their effective binding before a priority
+layer can run, including secure overrides already present when it is created.
 During combat, action-bar and binding updates revalidate each existing mapping;
 unchanged actions remain available. Only changed or unreadable mappings are
 hidden, and they recover if the original mapping becomes valid again. New
@@ -136,11 +142,16 @@ is checked before interpreting a missing result. The condition updates through
 the existing priority refresh loop and does not infer auras from timers or
 read back rendered alpha.
 
-JustAC's own fallback still uses interrupt, emergency group healing,
-low-health defense, tank maintenance, then rotation. User actions now run above
-the entire provider rather than inside JustAC's queue.
-These additions also follow the client restriction above. Older clients keep
-JustAC's interrupt, low-health defense, then rotation sequence.
+JustAC's fallback uses interrupt, low-health defense, then rotation, matching
+the stable provider order. Configured priority actions run above this fallback
+when their profile is enabled. Ordinary priority actions wait until the player's
+cast or channel ends; the Midnight provider retains its original 300 ms channel
+queue window. These controls follow the client restriction above.
+
+MaxDps reads its existing recommendation when activated, including the WeakAuras
+path, so switching back does not wait for a new upstream notification. Ovale
+supports global and `C_Item` item APIs, preserves observed item mappings across
+provider switches, and skips candidates whose cooldown data is unavailable.
 
 ## WoW Forever
 

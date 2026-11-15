@@ -27,15 +27,17 @@ WoWHACv5.providers["MaxDps"] = function(session)
         local provider = MaxDpsSpellFrame
         local Keybind = provider.bindText
 
-        hooks:SecureHook(MaxDps, "UpdateSpellFrame", function(_, spellID)
+        local function UpdateRecommendation(_, spellID)
             WoWHACv5:SetCurrentId(spellID)
             WoWHACv5:SetCurrentHotKey(spellID and spellID > 0 and Keybind:GetText() or nil)
-        end)
+        end
+        hooks:SecureHook(MaxDps, "UpdateSpellFrame", UpdateRecommendation)
+        if modern then UpdateRecommendation(MaxDps, MaxDps.Spell) end
     else
         local function InitializeWeakAuras()
             WoWHACv5.ToggleBurstFrame:Show()
             if session then session:AddCleanup(function() WoWHACv5.ToggleBurstFrame:Hide() end) end
-            hooks:SecureHook(WeakAuras, "ScanEvents", function(event)
+            local function UpdateRecommendation(event)
                 if event == "MAXDPS_COOLDOWN_UPDATE" then
                     for _, frame in pairs(MaxDps.Frames or {}) do
                         if frame and frame:IsVisible() and (WoWHACv5.burst or frame.ovType ~= "cooldown") then
@@ -46,7 +48,9 @@ WoWHACv5.providers["MaxDps"] = function(session)
                     end
                     WoWHACv5:SetCurrentHotKey(nil)
                 end
-            end)
+            end
+            hooks:SecureHook(WeakAuras, "ScanEvents", UpdateRecommendation)
+            if modern then UpdateRecommendation("MAXDPS_COOLDOWN_UPDATE") end
         end
         if modern then
             -- Provider switching may happen after the login message has fired.

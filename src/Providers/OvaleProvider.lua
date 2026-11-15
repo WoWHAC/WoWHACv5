@@ -1,9 +1,12 @@
 local _, WoWHACv5 = ...
+-- Ovale can retain an item recommendation while providers are switched.
+-- Keep observed item identities for the addon load, not only one session.
+local itemCache = {}
 
 WoWHACv5.providers = WoWHACv5.providers or {}
 WoWHACv5.providers["Ovale"] = function(session)
     local hooks = session or WoWHACv5
-    if not Ovale or not Ovale.frame or type(GetItemSpell) ~= "function" then return false end
+    if not Ovale or not Ovale.frame then return false end
     WoWHACv5:Log("Supplier found: Ovale.")
     local KEY_REPLACEMENTS = {
         ["ALT%-"] = "A",
@@ -62,8 +65,8 @@ WoWHACv5.providers["Ovale"] = function(session)
     end
 
     -- Кэш для ItemName -> ItemID
-    local itemCache = {}
-    local _GetItemSpell = GetItemSpell
+    local itemAPI = type(GetItemSpell) == "function" and _G or C_Item
+    local _GetItemSpell = itemAPI and itemAPI.GetItemSpell
     local function TrackItemSpell(id, ...)
         if session and not session.active then return _GetItemSpell(id, ...) end
         local name, spellId = _GetItemSpell(id, ...)
@@ -72,10 +75,10 @@ WoWHACv5.providers["Ovale"] = function(session)
         end
         return name, spellId
     end
-    GetItemSpell = TrackItemSpell
-    if session then
+    if type(_GetItemSpell) == "function" then itemAPI.GetItemSpell = TrackItemSpell end
+    if session and type(_GetItemSpell) == "function" then
         session:AddCleanup(function()
-            if GetItemSpell == TrackItemSpell then GetItemSpell = _GetItemSpell end
+            if itemAPI.GetItemSpell == TrackItemSpell then itemAPI.GetItemSpell = _GetItemSpell end
         end)
     end
 
@@ -98,13 +101,15 @@ WoWHACv5.providers["Ovale"] = function(session)
         end
         if spellId then
             local cd = C_Spell.GetSpellCooldown(spellId)
-            if IsReady(cd.startTime, cd.duration) then
+            if cd and IsReady(cd.startTime, cd.duration) then
                 return spell.icons[1].shortcut:GetText()
             end
         else
             local itemId = GetItemIdByName(spell.spellName)
             if itemId then
-                local start, duration = GetItemCooldown(itemId)
+                local getItemCooldown = GetItemCooldown or (C_Item and C_Item.GetItemCooldown)
+                if type(getItemCooldown) ~= "function" then return end
+                local start, duration = getItemCooldown(itemId)
                 if IsReady(start, duration) then
                     return spell.icons[1].shortcut:GetText()
                 end
